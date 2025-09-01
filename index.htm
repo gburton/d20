@@ -1,1 +1,542 @@
-d20
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Optimized Dartboard Practice</title>
+<style>
+  * { box-sizing: border-box; }
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+    margin: 0; padding: 20px; background: #f5f5f5; 
+  }
+  
+  .container {
+    display: grid;
+    grid-template-columns: 1fr 1fr 300px;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  
+  .panel {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .board-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 500px;
+  }
+  
+  svg { 
+    width: 100%; 
+    max-width: 480px; 
+    height: auto; 
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+  }
+  
+  .segment { stroke: #000; stroke-width: 0.8; }
+  .number { 
+    font-size: 14px; 
+    font-weight: 600; 
+    text-anchor: middle; 
+    dominant-baseline: middle; 
+    fill: #000; 
+    user-select: none;
+  }
+  
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+  }
+  
+  input[type="number"] {
+    width: 120px;
+    font-size: 28px;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 600;
+    transition: border-color 0.2s;
+  }
+  
+  input[type="number"]:focus {
+    outline: none;
+    border-color: #007acc;
+    box-shadow: 0 0 0 3px rgba(0,122,204,0.1);
+  }
+  
+  /* Remove spinners */
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type=number] { -moz-appearance: textfield; }
+  
+  .btn {
+    font-size: 18px;
+    font-weight: 600;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 140px;
+  }
+  
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  .btn-secondary {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+  }
+  
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  
+  .stats-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 8px;
+  }
+  
+  .stats-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+  }
+  
+  .stats-item:last-child { border-bottom: none; }
+  
+  .badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 24px;
+    border-radius: 4px;
+    color: white;
+    font-weight: 600;
+    font-size: 11px;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  
+  .badge-red { background: #dc3545; }
+  .badge-green { background: #28a745; }
+  
+  .totals {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-weight: 600;
+    text-align: center;
+  }
+  
+  h1 {
+    text-align: center;
+    margin: 0 0 30px 0;
+    color: #333;
+    font-size: 28px;
+    font-weight: 300;
+  }
+  
+  h3 {
+    margin: 0 0 20px 0;
+    text-align: center;
+    color: #666;
+    font-weight: 500;
+  }
+  
+  @media (max-width: 1200px) {
+    .container {
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+    .panel { padding: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Bunting Mental - Doubles Practice</h1>
+
+<div class="container">
+  <div class="panel">
+    <ul class="stats-list" id="results"></ul>
+    <div class="totals" id="totals">Total hits: 0</div>
+    <br>
+    <button class="btn btn-secondary" id="clearStats">Clear Stats</button>
+  </div>
+
+  <div class="panel board-container">
+    <svg viewBox="-225 -225 450 450" id="dartboard"></svg>
+  </div>
+
+  <div class="panel">
+    <h3>Enter Hits</h3>
+    <div class="input-group">
+      <input type="number" id="hits" min="0" max="15" placeholder="0-15">
+      <button class="btn btn-primary" id="submit">Submit Round</button>
+    </div>
+  </div>
+</div>
+
+<script>
+class DartboardApp {
+  constructor() {
+    // Constants
+    this.NUMBERS = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+    this.ALL_DOUBLES = [...Array(20).keys()].map(i => i + 1).concat(25);
+    this.STORAGE_KEYS = {
+      remaining: 'remainingDoubles',
+      current: 'currentDouble',
+      stats: 'doublesStats'
+    };
+    
+    // Board dimensions
+    this.DIMS = {
+      outerRadius: 200,
+      doubleWidth: 20,
+      trebleRadius: 120,
+      trebleWidth: 20,
+      bullOuter: 16,
+      bullInner: 8
+    };
+    
+    // State
+    this.remaining = this.loadData(this.STORAGE_KEYS.remaining) || [...this.ALL_DOUBLES];
+    this.currentDouble = this.loadData(this.STORAGE_KEYS.current);
+    this.totalHits = 0;
+    
+    // DOM elements
+    this.elements = {
+      svg: document.getElementById('dartboard'),
+      hits: document.getElementById('hits'),
+      submit: document.getElementById('submit'),
+      results: document.getElementById('results'),
+      totals: document.getElementById('totals'),
+      clear: document.getElementById('clearStats')
+    };
+    
+    this.init();
+  }
+  
+  init() {
+    this.bindEvents();
+    this.drawBoard();
+    this.renderStats();
+    this.setupCurrentDouble();
+    this.elements.hits.focus();
+  }
+  
+  bindEvents() {
+    this.elements.hits.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this.submitRound();
+        e.preventDefault();
+      }
+    });
+    
+    this.elements.hits.addEventListener('focus', () => this.elements.hits.select());
+    this.elements.hits.addEventListener('blur', () => 
+      setTimeout(() => this.elements.hits.focus(), 0));
+    
+    this.elements.submit.addEventListener('click', () => this.submitRound());
+    this.elements.clear.addEventListener('click', () => this.clearStats());
+  }
+  
+  loadData(key) {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  }
+  
+  saveData(key, data) {
+    try {
+      if (data === null) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, JSON.stringify(data));
+      }
+    } catch (e) {
+      console.warn('Failed to save data:', e);
+    }
+  }
+  
+  polarToCartesian(cx, cy, r, angleDeg) {
+    const angleRad = (angleDeg - 90) * Math.PI / 180;
+    return {
+      x: cx + r * Math.cos(angleRad),
+      y: cy + r * Math.sin(angleRad)
+    };
+  }
+  
+  createArcPath(cx, cy, rInner, rOuter, startAngle, endAngle) {
+    const startOuter = this.polarToCartesian(cx, cy, rOuter, endAngle);
+    const endOuter = this.polarToCartesian(cx, cy, rOuter, startAngle);
+    const startInner = this.polarToCartesian(cx, cy, rInner, startAngle);
+    const endInner = this.polarToCartesian(cx, cy, rInner, endAngle);
+    const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
+    
+    return [
+      'M', startOuter.x, startOuter.y,
+      'A', rOuter, rOuter, 0, largeArc, 0, endOuter.x, endOuter.y,
+      'L', startInner.x, startInner.y,
+      'A', rInner, rInner, 0, largeArc, 1, endInner.x, endInner.y,
+      'Z'
+    ].join(' ');
+  }
+  
+  createElement(type, attrs = {}) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', type);
+    Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+    return el;
+  }
+  
+  drawBoard() {
+    const svg = this.elements.svg;
+    const { NUMBERS, DIMS } = this;
+    const { outerRadius, doubleWidth, trebleRadius, trebleWidth, bullOuter, bullInner } = DIMS;
+    
+    // Clear existing content
+    svg.innerHTML = '';
+    
+    // Draw segments
+    for (let i = 0; i < 20; i++) {
+      const startAngle = -9 + i * 18;
+      const endAngle = -9 + (i + 1) * 18;
+      const isEven = i % 2 === 0;
+      const singleColor = isEven ? '#000' : '#fff';
+      const specialColor = isEven ? '#dc3545' : '#28a745';
+      
+      // Double ring
+      const doublePath = this.createElement('path', {
+        d: this.createArcPath(0, 0, outerRadius - doubleWidth, outerRadius, startAngle, endAngle),
+        fill: specialColor,
+        id: `double${NUMBERS[i]}`,
+        class: 'segment'
+      });
+      svg.appendChild(doublePath);
+      
+      // Treble ring
+      svg.appendChild(this.createElement('path', {
+        d: this.createArcPath(0, 0, trebleRadius - trebleWidth, trebleRadius, startAngle, endAngle),
+        fill: specialColor,
+        class: 'segment'
+      }));
+      
+      // Outer single
+      svg.appendChild(this.createElement('path', {
+        d: this.createArcPath(0, 0, trebleRadius, outerRadius - doubleWidth, startAngle, endAngle),
+        fill: singleColor,
+        class: 'segment'
+      }));
+      
+      // Inner single
+      svg.appendChild(this.createElement('path', {
+        d: this.createArcPath(0, 0, bullOuter, trebleRadius - trebleWidth, startAngle, endAngle),
+        fill: singleColor,
+        class: 'segment'
+      }));
+      
+      // Number
+      const angleMid = (startAngle + endAngle) / 2;
+      const pos = this.polarToCartesian(0, 0, outerRadius + 15, angleMid);
+      const numberText = this.createElement('text', {
+        x: pos.x,
+        y: pos.y,
+        class: 'number'
+      });
+      numberText.textContent = NUMBERS[i];
+      svg.appendChild(numberText);
+    }
+    
+    // Bull rings
+    svg.appendChild(this.createElement('circle', {
+      r: bullOuter,
+      fill: '#28a745'
+    }));
+    
+    svg.appendChild(this.createElement('circle', {
+      r: bullInner,
+      fill: '#dc3545',
+      id: 'double25'
+    }));
+  }
+  
+  setupCurrentDouble() {
+    if (this.currentDouble !== null) {
+      this.highlightDouble(this.currentDouble);
+    } else {
+      this.pickRandomDouble();
+    }
+  }
+  
+  pickRandomDouble() {
+    if (this.remaining.length === 0) {
+      this.handleRoundComplete();
+      return;
+    }
+    
+    const idx = Math.floor(Math.random() * this.remaining.length);
+    this.currentDouble = this.remaining.splice(idx, 1)[0];
+    this.saveData(this.STORAGE_KEYS.remaining, this.remaining);
+    this.saveData(this.STORAGE_KEYS.current, this.currentDouble);
+    
+    this.clearHighlights();
+    this.highlightDouble(this.currentDouble);
+    this.elements.hits.focus();
+  }
+  
+  handleRoundComplete() {
+    this.elements.submit.disabled = true;
+    this.elements.hits.disabled = true;
+    this.clearHighlights();
+    
+    setTimeout(() => {
+      alert('All doubles completed!');
+      this.resetRound();
+    }, 0);
+  }
+  
+  resetRound() {
+    this.remaining = [...this.ALL_DOUBLES];
+    this.currentDouble = null;
+    this.saveData(this.STORAGE_KEYS.remaining, this.remaining);
+    this.saveData(this.STORAGE_KEYS.current, null);
+    
+    this.elements.submit.disabled = false;
+    this.elements.hits.disabled = false;
+    this.pickRandomDouble();
+  }
+  
+  highlightDouble(doubleNum) {
+    const el = document.getElementById(`double${doubleNum}`);
+    if (el) el.setAttribute('fill', '#ffd700');
+  }
+  
+  clearHighlights() {
+    this.ALL_DOUBLES.forEach(dbl => {
+      const el = document.getElementById(`double${dbl}`);
+      if (el) {
+        if (dbl === 25) {
+          el.setAttribute('fill', '#dc3545');
+        } else {
+          const idx = this.NUMBERS.indexOf(dbl);
+          const isEven = idx % 2 === 0;
+          el.setAttribute('fill', isEven ? '#dc3545' : '#28a745');
+        }
+      }
+    });
+  }
+  
+  submitRound() {
+    if (this.currentDouble === null) return;
+    
+    const hits = parseInt(this.elements.hits.value, 10);
+    if (isNaN(hits) || hits < 0 || hits > 15) {
+      alert('Enter valid hits (0-15)');
+      return;
+    }
+    
+    this.saveStats(this.currentDouble, hits);
+    this.renderStats();
+    this.pickRandomDouble();
+    this.elements.hits.select();
+  }
+  
+  saveStats(doubleNum, hits) {
+    const stats = this.loadData(this.STORAGE_KEYS.stats) || {};
+    if (!stats[doubleNum]) {
+      stats[doubleNum] = { attempts: 0, totalHits: 0 };
+    }
+    stats[doubleNum].attempts++;
+    stats[doubleNum].totalHits += hits;
+    this.saveData(this.STORAGE_KEYS.stats, stats);
+  }
+  
+  renderStats() {
+    const stats = this.loadData(this.STORAGE_KEYS.stats) || {};
+    const fragment = document.createDocumentFragment();
+    this.totalHits = 0;
+    
+    this.ALL_DOUBLES.forEach(dbl => {
+  const data = stats[dbl];
+  const li = document.createElement('li');
+  li.className = 'stats-item';
+
+  // Determine correct badge color based on dartboard order
+  let colorClass;
+  if(dbl === 25) colorClass = 'badge-red';
+  else {
+    const idx = this.NUMBERS.indexOf(dbl); // NUMBERS = [20,1,18,...5]
+    colorClass = (idx % 2 === 0) ? 'badge-red' : 'badge-green';
+  }
+
+  const badge = document.createElement('span');
+  badge.className = `badge ${colorClass}`;
+  badge.textContent = `D${dbl}`;
+  li.appendChild(badge);
+
+  const text = document.createElement('span');
+  if (data) {
+    this.totalHits += data.totalHits;
+    const avg = (data.totalHits / data.attempts).toFixed(2);
+    text.textContent = `${data.totalHits} hits in ${data.attempts} rounds (avg: ${avg})`;
+  } else {
+    text.textContent = 'No data yet';
+    text.style.color = '#999';
+  }
+  li.appendChild(text);
+
+  fragment.appendChild(li);
+});
+    
+    this.elements.results.innerHTML = '';
+    this.elements.results.appendChild(fragment);
+    this.elements.totals.textContent = `Total hits: ${this.totalHits}`;
+  }
+  
+  clearStats() {
+    if (!confirm('Clear all statistics and start fresh?')) return;
+    
+    Object.values(this.STORAGE_KEYS).forEach(key => 
+      this.saveData(key, null));
+    
+    this.remaining = [...this.ALL_DOUBLES];
+    this.currentDouble = null;
+    this.renderStats();
+    this.clearHighlights();
+    this.pickRandomDouble();
+  }
+}
+
+// Initialize app
+new DartboardApp();
+</script>
+
+</body>
+</html>
