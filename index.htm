@@ -91,6 +91,7 @@
     cursor: pointer;
     transition: all 0.2s ease;
     min-width: 140px;
+    margin: 5px;
   }
   
   .btn-primary {
@@ -186,6 +187,7 @@
     <div class="totals" id="totals">Total hits: 0</div>
     <br>
     <button class="btn btn-secondary" id="clearStats">Clear Stats</button>
+    <button class="btn btn-primary" id="exportStats">Export Stats</button>
   </div>
 
   <div class="panel board-container">
@@ -235,7 +237,8 @@ class DartboardApp {
       submit: document.getElementById('submit'),
       results: document.getElementById('results'),
       totals: document.getElementById('totals'),
-      clear: document.getElementById('clearStats')
+      clear: document.getElementById('clearStats'),
+      export: document.getElementById('exportStats')
     };
     
     this.init();
@@ -263,6 +266,7 @@ class DartboardApp {
     
     this.elements.submit.addEventListener('click', () => this.submitRound());
     this.elements.clear.addEventListener('click', () => this.clearStats());
+    this.elements.export.addEventListener('click', () => this.exportStats());
   }
   
   loadData(key) {
@@ -531,6 +535,38 @@ class DartboardApp {
     this.renderStats();
     this.clearHighlights();
     this.pickRandomDouble();
+  }
+  
+  exportStats() {
+    const stats = this.loadData(this.STORAGE_KEYS.stats) || {};
+    let exportText = 'Doubles Practice Statistics\n';
+    exportText += '============================\n\n';
+    
+    // Export in D1 to D20, then D25 order
+    const orderedDoubles = [...Array(20).keys()].map(i => i + 1).concat(25);
+    
+    orderedDoubles.forEach(dbl => {
+      const data = stats[dbl];
+      if (data) {
+        const avg = (data.totalHits / data.attempts).toFixed(2);
+        exportText += `[D${dbl}] ${data.totalHits} hits in ${data.attempts} rounds (avg: ${avg})\n`;
+      } else {
+        exportText += `[D${dbl}] No data yet\n`;
+      }
+    });
+    
+    exportText += `\nTotal hits: ${this.totalHits}`;
+    
+    // Create and trigger download
+    const blob = new Blob([exportText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `doubles-practice-stats-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 }
 
