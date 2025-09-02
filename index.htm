@@ -50,6 +50,31 @@
     user-select: none;
   }
   
+  .current-double {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    border-radius: 12px;
+    border: 1px solid #bd2130;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    transition: all 0.3s ease;
+  }
+  
+  .current-double.green {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+    border: 1px solid #1c7430;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  }
+  
+  .current-double-text {
+    font-size: 48px;
+    font-weight: 700;
+    color: white;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  }
+  
   .input-group {
     display: flex;
     flex-direction: column;
@@ -174,6 +199,7 @@
       gap: 15px;
     }
     .panel { padding: 15px; }
+    .current-double-text { font-size: 36px; }
   }
 </style>
 </head>
@@ -195,6 +221,10 @@
   </div>
 
   <div class="panel">
+    <div class="current-double" id="currentDoubleDisplay">
+      <div class="current-double-text" id="currentDoubleText">-</div>
+    </div>
+    
     <h3>Enter Hits</h3>
     <div class="input-group">
       <input type="number" id="hits" min="0" max="15" placeholder="0-15">
@@ -238,7 +268,9 @@ class DartboardApp {
       results: document.getElementById('results'),
       totals: document.getElementById('totals'),
       clear: document.getElementById('clearStats'),
-      export: document.getElementById('exportStats')
+      export: document.getElementById('exportStats'),
+      currentDoubleText: document.getElementById('currentDoubleText'),
+      currentDoubleDisplay: document.getElementById('currentDoubleDisplay')
     };
     
     this.init();
@@ -267,6 +299,34 @@ class DartboardApp {
     this.elements.submit.addEventListener('click', () => this.submitRound());
     this.elements.clear.addEventListener('click', () => this.clearStats());
     this.elements.export.addEventListener('click', () => this.exportStats());
+  }
+  
+  // Helper method to determine if a double should be green or red
+  getDoubleColor(doubleNum) {
+    if (doubleNum === 25) {
+      return 'red'; // Bull is always red
+    }
+    const idx = this.NUMBERS.indexOf(doubleNum);
+    return (idx % 2 === 0) ? 'red' : 'green';
+  }
+  
+  // Update the current double display with correct color
+  updateCurrentDoubleDisplay() {
+    if (this.currentDouble !== null) {
+      this.elements.currentDoubleText.textContent = `D${this.currentDouble}`;
+      
+      // Remove existing color classes
+      this.elements.currentDoubleDisplay.classList.remove('green');
+      
+      // Add the appropriate color class
+      const color = this.getDoubleColor(this.currentDouble);
+      if (color === 'green') {
+        this.elements.currentDoubleDisplay.classList.add('green');
+      }
+    } else {
+      this.elements.currentDoubleText.textContent = '-';
+      this.elements.currentDoubleDisplay.classList.remove('green');
+    }
   }
   
   loadData(key) {
@@ -394,6 +454,7 @@ class DartboardApp {
   setupCurrentDouble() {
     if (this.currentDouble !== null) {
       this.highlightDouble(this.currentDouble);
+      this.updateCurrentDoubleDisplay();
     } else {
       this.pickRandomDouble();
     }
@@ -412,6 +473,7 @@ class DartboardApp {
     
     this.clearHighlights();
     this.highlightDouble(this.currentDouble);
+    this.updateCurrentDoubleDisplay();
     this.elements.hits.focus();
   }
   
@@ -419,6 +481,8 @@ class DartboardApp {
     this.elements.submit.disabled = true;
     this.elements.hits.disabled = true;
     this.clearHighlights();
+    this.elements.currentDoubleText.textContent = '-';
+    this.elements.currentDoubleDisplay.classList.remove('green');
     
     setTimeout(() => {
       alert('All doubles completed!');
