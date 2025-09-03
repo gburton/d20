@@ -397,7 +397,7 @@ class DartboardApp {
 
     this.elements.results.innerHTML = '';
     this.elements.results.appendChild(fragment);
-    this.elements.totals.textContent = `Total hits: ${this.totalHits} (${this.totalAttempts} attempts)`;
+    this.elements.totals.textContent = `Total hits: ${this.totalHits} (${this.totalAttempts} rounds)`;
   }
   
   clearStats() {
@@ -430,7 +430,7 @@ class DartboardApp {
       }
     });
     
-    exportText += `\nTotal hits: ${this.totalHits} (${this.totalAttempts} attempts)`;
+    exportText += `\nTotal hits: ${this.totalHits} (${this.totalAttempts} rounds)`;
     
     const blob = new Blob([exportText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
