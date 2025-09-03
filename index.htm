@@ -2,206 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Optimized Dartboard Practice</title>
-<style>
-  * { box-sizing: border-box; }
-  body { 
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-    margin: 0; padding: 20px; background: #f5f5f5; 
-  }
-  
-  .container {
-    display: grid;
-    grid-template-columns: 1fr 1fr 300px;
-    gap: 20px;
-    max-width: 1400px;
-    margin: 0 auto;
-    align-items: start;
-  }
-  
-  .panel {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  }
-  
-  .board-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 500px;
-  }
-  
-  svg { 
-    width: 100%; 
-    max-width: 480px; 
-    height: auto; 
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
-  }
-  
-  .segment { stroke: #000; stroke-width: 0.8; }
-  .number { 
-    font-size: 14px; 
-    font-weight: 600; 
-    text-anchor: middle; 
-    dominant-baseline: middle; 
-    fill: #000; 
-    user-select: none;
-  }
-  
-  .current-double {
-    text-align: center;
-    margin-bottom: 20px;
-    padding: 10px;
-    background: linear-gradient(135deg, #dc3545, #c82333);
-    border-radius: 12px;
-    border: 1px solid #bd2130;
-    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
-    transition: all 0.3s ease;
-  }
-  
-  .current-double.green {
-    background: linear-gradient(135deg, #28a745, #1e7e34);
-    border: 1px solid #1c7430;
-    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-  }
-  
-  .current-double-text {
-    font-size: 48px;
-    font-weight: 700;
-    color: white;
-    margin: 0;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-  }
-  
-  .input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    align-items: center;
-  }
-  
-  input[type="number"] {
-    width: 120px;
-    font-size: 28px;
-    padding: 12px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    text-align: center;
-    font-weight: 600;
-    transition: border-color 0.2s;
-  }
-  
-  input[type="number"]:focus {
-    outline: none;
-    border-color: #007acc;
-    box-shadow: 0 0 0 3px rgba(0,122,204,0.1);
-  }
-  
-  /* Remove spinners */
-  input[type=number]::-webkit-outer-spin-button,
-  input[type=number]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  input[type=number] { -moz-appearance: textfield; }
-  
-  .btn {
-    font-size: 18px;
-    font-weight: 600;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 140px;
-    margin: 5px;
-  }
-  
-  .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-  }
-  
-  .btn-secondary {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: white;
-  }
-  
-  .btn:hover { transform: translateY(-1px); }
-  .btn:active { transform: translateY(0); }
-  
-  .stats-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    max-height: 400px;
-    overflow-y: auto;
-    border: 1px solid #eee;
-    border-radius: 8px;
-  }
-  
-  .stats-item {
-    display: flex;
-    align-items: center;
-    padding: 8px 12px;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 14px;
-  }
-  
-  .stats-item:last-child { border-bottom: none; }
-  
-  .badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 24px;
-    border-radius: 4px;
-    color: white;
-    font-weight: 600;
-    font-size: 11px;
-    margin-right: 12px;
-    flex-shrink: 0;
-  }
-  
-  .badge-red { background: #dc3545; }
-  .badge-green { background: #28a745; }
-  
-  .totals {
-    margin-top: 15px;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    font-weight: 600;
-    text-align: center;
-  }
-  
-  h1 {
-    text-align: center;
-    margin: 0 0 30px 0;
-    color: #333;
-    font-size: 28px;
-    font-weight: 300;
-  }
-  
-  h3 {
-    margin: 0 0 20px 0;
-    text-align: center;
-    color: #666;
-    font-weight: 500;
-  }
-  
-  @media (max-width: 1200px) {
-    .container {
-      grid-template-columns: 1fr;
-      gap: 15px;
-    }
-    .panel { padding: 15px; }
-    .current-double-text { font-size: 36px; }
-  }
-</style>
+<title>Bunting Mental - Doubles Practice</title>
+<link href="board.css" rel="stylesheet">
 </head>
 <body>
 
@@ -242,7 +44,7 @@ class DartboardApp {
     this.STORAGE_KEYS = {
       remaining: 'remainingDoubles',
       current: 'currentDouble',
-      stats: 'doublesStats'
+      sessions: 'doublesSessions'
     };
     
     // Board dimensions
@@ -259,6 +61,7 @@ class DartboardApp {
     this.remaining = this.loadData(this.STORAGE_KEYS.remaining) || [...this.ALL_DOUBLES];
     this.currentDouble = this.loadData(this.STORAGE_KEYS.current);
     this.totalHits = 0;
+    this.totalAttempts = 0;
     
     // DOM elements
     this.elements = {
@@ -301,24 +104,18 @@ class DartboardApp {
     this.elements.export.addEventListener('click', () => this.exportStats());
   }
   
-  // Helper method to determine if a double should be green or red
   getDoubleColor(doubleNum) {
     if (doubleNum === 25) {
-      return 'red'; // Bull is always red
+      return 'red';
     }
     const idx = this.NUMBERS.indexOf(doubleNum);
     return (idx % 2 === 0) ? 'red' : 'green';
   }
   
-  // Update the current double display with correct color
   updateCurrentDoubleDisplay() {
     if (this.currentDouble !== null) {
       this.elements.currentDoubleText.textContent = `D${this.currentDouble}`;
-      
-      // Remove existing color classes
       this.elements.currentDoubleDisplay.classList.remove('green');
-      
-      // Add the appropriate color class
       const color = this.getDoubleColor(this.currentDouble);
       if (color === 'green') {
         this.elements.currentDoubleDisplay.classList.add('green');
@@ -350,6 +147,39 @@ class DartboardApp {
     }
   }
   
+  saveSession(hits) {
+    const sessions = this.loadData(this.STORAGE_KEYS.sessions) || [];
+    const session = {
+        date: new Date().toISOString(),
+        double: this.currentDouble,
+        hits: hits,
+        timestamp: Date.now()
+    };
+    sessions.push(session);
+    this.saveData(this.STORAGE_KEYS.sessions, sessions);
+    return session;
+  }
+
+  getSessionStats() {
+    const sessions = this.loadData(this.STORAGE_KEYS.sessions) || [];
+    const stats = {};
+    
+    this.ALL_DOUBLES.forEach(dbl => {
+        stats[dbl] = { attempts: 0, totalHits: 0, sessions: [] };
+    });
+
+    sessions.forEach(session => {
+        const dbl = session.double;
+        if (stats[dbl]) {
+            stats[dbl].attempts++;
+            stats[dbl].totalHits += session.hits;
+            stats[dbl].sessions.push(session);
+        }
+    });
+
+    return { stats, sessions };
+  }
+
   polarToCartesian(cx, cy, r, angleDeg) {
     const angleRad = (angleDeg - 90) * Math.PI / 180;
     return {
@@ -385,10 +215,8 @@ class DartboardApp {
     const { NUMBERS, DIMS } = this;
     const { outerRadius, doubleWidth, trebleRadius, trebleWidth, bullOuter, bullInner } = DIMS;
     
-    // Clear existing content
     svg.innerHTML = '';
     
-    // Draw segments
     for (let i = 0; i < 20; i++) {
       const startAngle = -9 + i * 18;
       const endAngle = -9 + (i + 1) * 18;
@@ -396,7 +224,6 @@ class DartboardApp {
       const singleColor = isEven ? '#000' : '#fff';
       const specialColor = isEven ? '#dc3545' : '#28a745';
       
-      // Double ring
       const doublePath = this.createElement('path', {
         d: this.createArcPath(0, 0, outerRadius - doubleWidth, outerRadius, startAngle, endAngle),
         fill: specialColor,
@@ -405,28 +232,24 @@ class DartboardApp {
       });
       svg.appendChild(doublePath);
       
-      // Treble ring
       svg.appendChild(this.createElement('path', {
         d: this.createArcPath(0, 0, trebleRadius - trebleWidth, trebleRadius, startAngle, endAngle),
         fill: specialColor,
         class: 'segment'
       }));
       
-      // Outer single
       svg.appendChild(this.createElement('path', {
         d: this.createArcPath(0, 0, trebleRadius, outerRadius - doubleWidth, startAngle, endAngle),
         fill: singleColor,
         class: 'segment'
       }));
       
-      // Inner single
       svg.appendChild(this.createElement('path', {
         d: this.createArcPath(0, 0, bullOuter, trebleRadius - trebleWidth, startAngle, endAngle),
         fill: singleColor,
         class: 'segment'
       }));
       
-      // Number
       const angleMid = (startAngle + endAngle) / 2;
       const pos = this.polarToCartesian(0, 0, outerRadius + 15, angleMid);
       const numberText = this.createElement('text', {
@@ -438,7 +261,6 @@ class DartboardApp {
       svg.appendChild(numberText);
     }
     
-    // Bull rings
     svg.appendChild(this.createElement('circle', {
       r: bullOuter,
       fill: '#28a745'
@@ -530,62 +352,52 @@ class DartboardApp {
       return;
     }
     
-    this.saveStats(this.currentDouble, hits);
+    this.saveSession(hits);
     this.renderStats();
     this.pickRandomDouble();
     this.elements.hits.select();
   }
   
-  saveStats(doubleNum, hits) {
-    const stats = this.loadData(this.STORAGE_KEYS.stats) || {};
-    if (!stats[doubleNum]) {
-      stats[doubleNum] = { attempts: 0, totalHits: 0 };
-    }
-    stats[doubleNum].attempts++;
-    stats[doubleNum].totalHits += hits;
-    this.saveData(this.STORAGE_KEYS.stats, stats);
-  }
-  
   renderStats() {
-    const stats = this.loadData(this.STORAGE_KEYS.stats) || {};
+    const { stats } = this.getSessionStats();
     const fragment = document.createDocumentFragment();
     this.totalHits = 0;
-    
+    this.totalAttempts = 0;
+
     this.ALL_DOUBLES.forEach(dbl => {
-  const data = stats[dbl];
-  const li = document.createElement('li');
-  li.className = 'stats-item';
+      const data = stats[dbl];
+      const li = document.createElement('li');
+      li.className = 'stats-item';
 
-  // Determine correct badge color based on dartboard order
-  let colorClass;
-  if(dbl === 25) colorClass = 'badge-red';
-  else {
-    const idx = this.NUMBERS.indexOf(dbl); // NUMBERS = [20,1,18,...5]
-    colorClass = (idx % 2 === 0) ? 'badge-red' : 'badge-green';
-  }
+      let colorClass;
+      if(dbl === 25) colorClass = 'badge-red';
+      else {
+        const idx = this.NUMBERS.indexOf(dbl);
+        colorClass = (idx % 2 === 0) ? 'badge-red' : 'badge-green';
+      }
 
-  const badge = document.createElement('span');
-  badge.className = `badge ${colorClass}`;
-  badge.textContent = `D${dbl}`;
-  li.appendChild(badge);
+      const badge = document.createElement('span');
+      badge.className = `badge ${colorClass}`;
+      badge.textContent = `D${dbl}`;
+      li.appendChild(badge);
 
-  const text = document.createElement('span');
-  if (data) {
-    this.totalHits += data.totalHits;
-    const avg = (data.totalHits / data.attempts).toFixed(2);
-    text.textContent = `${data.totalHits} hits in ${data.attempts} rounds (avg: ${avg})`;
-  } else {
-    text.textContent = 'No data yet';
-    text.style.color = '#999';
-  }
-  li.appendChild(text);
+      const text = document.createElement('span');
+      if (data && data.attempts > 0) {
+        this.totalHits += data.totalHits;
+        this.totalAttempts += data.attempts;
+        const avg = (data.totalHits / data.attempts).toFixed(2);
+        text.textContent = `${data.totalHits} hits in ${data.attempts} rounds (avg: ${avg})`;
+      } else {
+        text.textContent = 'No data yet';
+        text.style.color = '#999';
+      }
+      li.appendChild(text);
+      fragment.appendChild(li);
+    });
 
-  fragment.appendChild(li);
-});
-    
     this.elements.results.innerHTML = '';
     this.elements.results.appendChild(fragment);
-    this.elements.totals.textContent = `Total hits: ${this.totalHits}`;
+    this.elements.totals.textContent = `Total hits: ${this.totalHits} (${this.totalAttempts} attempts)`;
   }
   
   clearStats() {
@@ -602,16 +414,15 @@ class DartboardApp {
   }
   
   exportStats() {
-    const stats = this.loadData(this.STORAGE_KEYS.stats) || {};
+    const { stats } = this.getSessionStats();
     let exportText = 'Doubles Practice Statistics\n';
     exportText += '============================\n\n';
     
-    // Export in D1 to D20, then D25 order
     const orderedDoubles = [...Array(20).keys()].map(i => i + 1).concat(25);
     
     orderedDoubles.forEach(dbl => {
       const data = stats[dbl];
-      if (data) {
+      if (data && data.attempts > 0) {
         const avg = (data.totalHits / data.attempts).toFixed(2);
         exportText += `[D${dbl}] ${data.totalHits} hits in ${data.attempts} rounds (avg: ${avg})\n`;
       } else {
@@ -619,9 +430,8 @@ class DartboardApp {
       }
     });
     
-    exportText += `\nTotal hits: ${this.totalHits}`;
+    exportText += `\nTotal hits: ${this.totalHits} (${this.totalAttempts} attempts)`;
     
-    // Create and trigger download
     const blob = new Blob([exportText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
