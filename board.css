@@ -111,22 +111,46 @@ input[type=number] { -moz-appearance: textfield; }
   transition: all 0.2s ease;
   min-width: 140px;
   margin: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  position: relative;
+  line-height: 1;
+  box-sizing: border-box;
+  vertical-align: middle;
+  font-family: inherit;
 }
 
 .btn-primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  text-decoration: none;
 }
 
 .btn-secondary {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   color: white;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
+  color: white;
   text-decoration: none;
 }
 
-.btn:hover { transform: translateY(-1px); }
-.btn:active { transform: translateY(0); }
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+button.btn {}
+
+a.btn {}
 
 .stats-list {
   list-style: none;
