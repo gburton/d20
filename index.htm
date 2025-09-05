@@ -14,8 +14,9 @@
     <ul class="stats-list" id="results"></ul>
     <div class="totals" id="totals">Total hits: 0</div>
     <br>
-    <button class="btn btn-secondary" id="clearStats">Clear Stats</button>
-    <button class="btn btn-primary" id="exportStats">Export Stats</button>
+    <div style="display: flex; justify-content: space-between;">
+      <button class="btn btn-primary" id="exportStats">Export Todays Stats</button>
+    </div>
   </div>
 
   <div class="panel board-container">
@@ -70,7 +71,6 @@ class DartboardApp {
       submit: document.getElementById('submit'),
       results: document.getElementById('results'),
       totals: document.getElementById('totals'),
-      clear: document.getElementById('clearStats'),
       export: document.getElementById('exportStats'),
       currentDoubleText: document.getElementById('currentDoubleText'),
       currentDoubleDisplay: document.getElementById('currentDoubleDisplay')
@@ -100,7 +100,6 @@ class DartboardApp {
       setTimeout(() => this.elements.hits.focus(), 0));
     
     this.elements.submit.addEventListener('click', () => this.submitRound());
-    this.elements.clear.addEventListener('click', () => this.clearStats());
     this.elements.export.addEventListener('click', () => this.exportStats());
   }
   
@@ -178,6 +177,29 @@ class DartboardApp {
     });
 
     return { stats, sessions };
+  }
+
+  getTodaysSessionStats() {
+    const sessions = this.loadData(this.STORAGE_KEYS.sessions) || [];
+    const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+    const todaysSessions = sessions.filter(session => session.date.startsWith(today));
+    
+    const stats = {};
+    
+    this.ALL_DOUBLES.forEach(dbl => {
+        stats[dbl] = { attempts: 0, totalHits: 0, sessions: [] };
+    });
+
+    todaysSessions.forEach(session => {
+        const dbl = session.double;
+        if (stats[dbl]) {
+            stats[dbl].attempts++;
+            stats[dbl].totalHits += session.hits;
+            stats[dbl].sessions.push(session);
+        }
+    });
+
+    return { stats, sessions: todaysSessions };
   }
 
   polarToCartesian(cx, cy, r, angleDeg) {
@@ -359,7 +381,7 @@ class DartboardApp {
   }
   
   renderStats() {
-    const { stats } = this.getSessionStats();
+    const { stats } = this.getTodaysSessionStats();
     const fragment = document.createDocumentFragment();
     this.totalHits = 0;
     this.totalAttempts = 0;
@@ -398,19 +420,6 @@ class DartboardApp {
     this.elements.results.innerHTML = '';
     this.elements.results.appendChild(fragment);
     this.elements.totals.textContent = `Total hits: ${this.totalHits} (${this.totalAttempts} rounds)`;
-  }
-  
-  clearStats() {
-    if (!confirm('Clear all statistics and start fresh?')) return;
-    
-    Object.values(this.STORAGE_KEYS).forEach(key => 
-      this.saveData(key, null));
-    
-    this.remaining = [...this.ALL_DOUBLES];
-    this.currentDouble = null;
-    this.renderStats();
-    this.clearHighlights();
-    this.pickRandomDouble();
   }
   
   exportStats() {
