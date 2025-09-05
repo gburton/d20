@@ -9,14 +9,13 @@
 </head>
 <body>
 
-  <main class="report">
-    <div class="report-header">
-      <a href="index.htm" class="btn btn-primary">← Back to Practice</a>
-      <h1>📊 Your Progress Report</h1>
-    </div>
-    
-    <div class="report-data">
-    
+<main class="report">
+  <div class="report-header">
+    <a href="index.htm" class="btn btn-primary">← Back to Practice</a>
+    <h1>📊 Your Progress Report</h1>
+  </div>
+  
+  <div class="report-data">
     <div id="statsOverview" class="stats-overview"></div>
     <div class="charts-grid" id="chartsGrid">
       <div class="chart-container">
@@ -45,378 +44,292 @@
     </div>
     
     <button id="clearStats" class="btn btn-danger">Clear All Stats</button>
-    
-    </div>
-  </main>
- 
-  <script>
-    class ProgressReport {
-      constructor() {
-        this.reportEl = document.querySelector('.report-data');
-        this.statsOverviewEl = document.getElementById('statsOverview');
-        this.chartsGridEl = document.getElementById('chartsGrid');
-        this.sessions = this.loadSessions();
-        this.stats = this.calculateStats();
-        this.charts = {};
-        this.init();
-      }
+  </div>
+</main>
 
-      loadSessions() {
-        try {
-          const data = localStorage.getItem('doublesSessions');
-          const sessions = data ? JSON.parse(data) : [];
-          return sessions.filter(s => Number.isInteger(s.double) && Number.isInteger(s.hits));
-        } catch {
-          return [];
-        }
-      }
+<script>
+class ProgressReport {
+  constructor() {
+    this.reportEl = document.querySelector('.report-data');
+    this.statsOverviewEl = document.getElementById('statsOverview');
+    this.chartsGridEl = document.getElementById('chartsGrid');
 
-      calculateStats() {
-        const stats = {};
-        const ALL_DOUBLES = [...Array(20).keys()].map(i => i + 1).concat(25);
+    this.sessions = this.loadSessions();
+    this.stats = this.calculateStats();
+    this.charts = {};
+    this.init();
+  }
 
-        for (const dbl of ALL_DOUBLES) {
-          stats[dbl] = { attempts: 0, totalHits: 0, sessions: [], average: 0 };
-        }
-
-        for (const s of this.sessions) {
-          if (!stats[s.double]) continue;
-          stats[s.double].attempts++;
-          stats[s.double].totalHits += s.hits;
-          stats[s.double].sessions.push(s);
-        }
-
-        for (const dbl of Object.keys(stats)) {
-          if (stats[dbl].attempts) {
-            stats[dbl].average = stats[dbl].totalHits / stats[dbl].attempts;
-          }
-        }
-        return stats;
-      }
-
-      init() {
-        if (!this.sessions.length) {
-          this.reportEl.innerHTML =
-            '<div class="no-data">No practice data available yet. Start practicing to see your progress!</div>';
-          return;
-        }
-
-        if (typeof Chart === 'undefined') {
-          console.error('Chart.js failed to load.');
-          this.chartsGridEl.innerHTML =
-            '<div class="no-data">Error: Unable to load charts. Please refresh.</div>';
-          return;
-        }
-
-        this.renderStatsOverview();
-        this.renderDoublesChart();
-        this.renderDailyChart();
-        this.renderHeatmapChart();
-        this.renderBestWorstChart(); // Pie chart
-        this.renderDistributionChart();
-      }
-
-      renderStatsOverview() {
-        const totalSessions = this.sessions.length;
-        const totalHits = this.sessions.reduce((sum, s) => sum + s.hits, 0);
-        const overallAverage = totalSessions ? (totalHits / totalSessions).toFixed(2) : 0;
-        const practiceDays = new Set(this.sessions.map(s => s.date.split('T')[0])).size;
-
-        this.statsOverviewEl.innerHTML = `
-          <div class="stat-card"><div class="stat-value">${totalSessions}</div><div class="stat-label">Rounds</div></div>
-          <div class="stat-card"><div class="stat-value">${totalHits}</div><div class="stat-label">Total Hits</div></div>
-          <div class="stat-card"><div class="stat-value">${overallAverage}</div><div class="stat-label">Avg Hits/Round</div></div>
-          <div class="stat-card"><div class="stat-value">${practiceDays}</div><div class="stat-label">Days Practiced</div></div>
-        `;
-      }
-
-      renderDoublesChart() {
-        const ctx = document.getElementById('doublesChart').getContext('2d');
-        const doubles = Object.keys(this.stats).sort((a, b) => parseInt(a) - parseInt(b));
-        const averages = doubles.map(d => this.stats[d].average);
-
-        const backgroundColors = doubles.map(d => {
-          if (d == 25) return '#dc3545';
-          const NUMBERS = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
-          const idx = NUMBERS.indexOf(parseInt(d));
-          return (idx % 2 === 0) ? '#dc3545' : '#28a745';
-        });
-
-        new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: doubles.map(d => `D${d}`),
-            datasets: [{
-              label: 'Average Hits per Round',
-              data: averages,
-              backgroundColor: backgroundColors,
-              borderColor: backgroundColors,
-              borderWidth: 1,
-              borderRadius: 8,
-              borderSkipped: false
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              y: { beginAtZero: true, max: 15 },
-              x: { grid: { display: false } }
-            }
-          }
-        });
-      }
-
-      renderDailyChart() {
-        const ctx = document.getElementById('dailyChart').getContext('2d');
-        const dailyData = {};
-        for (const s of this.sessions) {
-          const date = s.date.split('T')[0];
-          if (!dailyData[date]) dailyData[date] = { totalHits: 0, attempts: 0 };
-          dailyData[date].totalHits += s.hits;
-          dailyData[date].attempts++;
-        }
-        const dates = Object.keys(dailyData).sort();
-        const averages = dates.map(date => (dailyData[date].totalHits / dailyData[date].attempts) * 15);
-
-        new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: dates,
-            datasets: [{
-              label: 'Daily Average',
-              data: averages,
-              borderColor: '#667eea',
-              backgroundColor: 'rgba(102,126,234,0.1)',
-              fill: true,
-              tension: 0.4
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } }
-          }
-        });
-      }
-
-      renderHeatmapChart(limitDays = 30) {
-        const container = document.getElementById('heatmapContainer');
-        container.innerHTML = '';
-
-        let allDates = [...new Set(this.sessions.map(s => s.date.split('T')[0]))];
-        allDates.sort((a, b) => new Date(b) - new Date(a));
-
-        const trimmed = allDates.length > limitDays;
-        const datesToShow = trimmed ? allDates.slice(0, limitDays) : allDates;
-
-        const doubles = Object.keys(this.stats).sort((a, b) => parseInt(a) - parseInt(b));
-        const dateDoubleContainers = {};
-        
-        for (const s of this.sessions) {
-          const date = s.date.split('T')[0];
-          if (!datesToShow.includes(date)) continue;
-          const key = `${date}-${s.double}`;
-          
-          if (!dateDoubleContainers[key]) {
-            dateDoubleContainers[key] = {
-              sessions: [],
-              totalHits: 0
-            };
-          }
-          dateDoubleContainers[key].sessions.push(s);
-          dateDoubleContainers[key].totalHits += s.hits;
-        }
-    
-        Object.keys(dateDoubleContainers).forEach(key => {
-          dateDoubleContainers[key].sessions.sort((a, b) => 
-            new Date(b.date) - new Date(a.date)
-          );
-        });
-
-        const table = document.createElement('table');
-        table.className = 'heatmap-table';
-        const headerRow = document.createElement('tr');
-        headerRow.innerHTML = `<th></th>${doubles.map(d => `<th>D${d}</th>`).join('')}`;
-        table.appendChild(headerRow);
-
-        let maxHits = Math.max(1, ...Object.values(dateDoubleContainers).map(c => c.totalHits));
-
-        for (const date of datesToShow) {
-          const row = document.createElement('tr');
-          const dateHeader = document.createElement('td');
-          dateHeader.className = 'date-column';
-          dateHeader.textContent = this.formatDate(date);
-          row.appendChild(dateHeader);
-
-          for (const d of doubles) {
-            const cell = document.createElement('td');
-            const key = `${date}-${d}`;
-            const container = dateDoubleContainers[key];
-            
-            if (container && container.sessions.length > 0) {
-              const sessionContainer = document.createElement('div');
-              sessionContainer.style.display = 'flex';
-              sessionContainer.style.flexDirection = 'column';
-              sessionContainer.style.gap = '2px';
-                
-              container.sessions.forEach(session => {
-                const sessionElement = document.createElement('div');
-                // PRESERVE ORIGINAL STYLING: white text with shadow
-                sessionElement.style.color = 'white';
-                sessionElement.style.textShadow = '1px 1px 2px rgba(0,0,0,0.7)';
-                sessionElement.style.padding = '4px';
-                sessionElement.style.textAlign = 'center';
-                sessionElement.style.borderRadius = '3px';
-                sessionElement.style.fontWeight = 'bold';
-                
-                if (session.hits === 0) {
-                  sessionElement.style.backgroundColor = 'rgba(255, 150, 150, 0.7)';
-                  sessionElement.textContent = '0';
-                } else {
-                  const intensity = Math.min(session.hits / maxHits, 1);
-                  sessionElement.style.backgroundColor = `rgba(102,126,234,${0.2 + 0.8 * intensity})`;
-                  sessionElement.textContent = session.hits;
-                }
-                    
-                sessionContainer.appendChild(sessionElement);
-              });
-                
-              cell.appendChild(sessionContainer);
-              cell.style.backgroundColor = '';
-            } else {
-              cell.textContent = '-';
-              cell.style.backgroundColor = '#f9f9f9';
-            }
-            row.appendChild(cell);
-          }
-          table.appendChild(row);
-        }
-        container.appendChild(table);
-
-        const legend = document.createElement('div');
-        legend.className = 'heatmap-legend';
-        legend.innerHTML = `
-          <span class="legend-label">Fewer</span>
-          <span class="legend-color" style="background-color: rgba(102,126,234,0.3)"></span>
-          <span class="legend-color" style="background-color: rgba(102,126,234,0.6)"></span>
-          <span class="legend-color" style="background-color: rgba(102,126,234,0.9)"></span>
-          <span class="legend-label">More</span>
-        `;
-        container.appendChild(legend);
-
-        if (trimmed) {
-          const toggle = document.createElement('button');
-          toggle.className = 'btn btn-secondary heatmap-toggle';
-          toggle.textContent = 'Show All';
-          toggle.addEventListener('click', () => {
-            this.renderHeatmapChart(allDates.length);
-          });
-          container.appendChild(toggle);
-        }
-      }
-
-      formatDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      }
-
-      renderBestWorstChart() {
-        const ctx = document.getElementById('bestWorstChart').getContext('2d');
-        const ALL_DOUBLES = [...Array(20).keys()].map(i => i + 1).concat(25);
-
-        const all = ALL_DOUBLES.map(d => ({
-          double: d,
-          average: this.stats[d].attempts ? this.stats[d].average : 0
-        })).sort((a, b) => b.average - a.average);
-
-        const best5 = all.slice(0, 5);
-        const worst5 = all.slice(-5);
-
-        const labels = [
-          ...best5.map(d => `D${d.double} (${d.average.toFixed(2)})`),
-          ...worst5.map(d => `D${d.double} (${d.average.toFixed(2)})`)
-        ];
-        const data = [...best5.map(d => d.average), ...worst5.map(d => d.average)];
-
-        new Chart(ctx, {
-          type: 'pie',
-          data: {
-            labels: labels,
-            datasets: [{
-              data: data,
-              backgroundColor: [
-                '#28a745','#218838','#1e7e34','#1c7430','#19692c',
-                '#dc3545','#c82333','#bd2130','#b21f2d','#a71e2a'
-              ],
-              borderWidth: 2,
-              borderColor: '#fff'
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } }
-          }
-        });
-      }
-
-      renderDistributionChart() {
-        const ctx = document.getElementById('distributionChart').getContext('2d');
-        const hitCounts = Array(16).fill(0);
-        for (const s of this.sessions) {
-          if (s.hits >= 0 && s.hits <= 15) hitCounts[s.hits]++;
-        }
-
-        new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: Array.from({ length: 16 }, (_, i) => i.toString()),
-            datasets: [{
-              label: 'Frequency',
-              data: hitCounts,
-              backgroundColor: 'rgba(118,75,162,0.8)',
-              borderColor: '#764ba2',
-              borderWidth: 1,
-              borderRadius: 8,
-              borderSkipped: false
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              y: { beginAtZero: true, grid: { display: false } },
-              x: {
-                title: { display: true, text: 'Number of Hits' },
-                grid: { display: false }
-              }
-            }
-          }
-        });
-      }
+  loadSessions() {
+    try {
+      const data = localStorage.getItem('doublesSessionsV2');
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
     }
-    
-    
-    function setupClearStatsButton() {
-      const clearButton = document.getElementById('clearStats');
-      if (!clearButton) return;
-      
-      clearButton.addEventListener('click', function() {
-        if (confirm('Are you sure you want to clear all your progress data? This cannot be undone.')) {
-          localStorage.removeItem('doublesSessions');
-          alert('All progress data has been cleared.');
-          location.reload();
-        }
-      });
-    }
+  }
 
-    document.addEventListener('DOMContentLoaded', function() {
-      new ProgressReport();
-      setupClearStatsButton();
+  calculateStats() {
+    const stats = {};
+    const ALL_DOUBLES = [...Array(20).keys()].map(i => i + 1).concat(25);
+
+    ALL_DOUBLES.forEach(d => {
+      stats[d] = { attempts: 0, totalHits: 0, sessions: [], average: 0 };
     });
-  </script>
+
+    for (const session of this.sessions) {
+      for (const dbl of ALL_DOUBLES) {
+        const hits = session.doubles[dbl] || 0;
+        stats[dbl].attempts++;
+        stats[dbl].totalHits += hits;
+        stats[dbl].sessions.push({ ...session, hits, double: dbl });
+      }
+    }
+
+    Object.keys(stats).forEach(d => {
+      stats[d].average = stats[d].attempts ? stats[d].totalHits / stats[d].attempts : 0;
+    });
+
+    return stats;
+  }
+
+  init() {
+    if (!this.sessions.length) {
+      this.reportEl.innerHTML =
+        '<div class="no-data">No practice data available yet. Start practicing to see your progress!</div>';
+      return;
+    }
+
+    if (typeof Chart === 'undefined') {
+      console.error('Chart.js failed to load.');
+      this.chartsGridEl.innerHTML =
+        '<div class="no-data">Error: Unable to load charts. Please refresh.</div>';
+      return;
+    }
+
+    this.renderStatsOverview();
+    this.renderDoublesChart();
+    this.renderDailyChart();
+    this.renderHeatmapChart();
+    this.renderBestWorstChart();
+    this.renderDistributionChart();
+  }
+
+  renderStatsOverview() {
+    const totalSessions = this.sessions.length;
+    const totalHits = this.sessions.reduce((sum, s) => sum + s.totalHits, 0);
+    const overallAverage = totalSessions ? (totalHits / totalSessions).toFixed(2) : 0;
+    const practiceDays = new Set(this.sessions.map(s => s.date.split('T')[0])).size;
+
+    this.statsOverviewEl.innerHTML = `
+      <div class="stat-card"><div class="stat-value">${totalSessions}</div><div class="stat-label">Sessions</div></div>
+      <div class="stat-card"><div class="stat-value">${totalHits}</div><div class="stat-label">Total Hits</div></div>
+      <div class="stat-card"><div class="stat-value">${overallAverage}</div><div class="stat-label">Avg Hits/Session</div></div>
+      <div class="stat-card"><div class="stat-value">${practiceDays}</div><div class="stat-label">Days Practiced</div></div>
+    `;
+  }
+
+  renderDoublesChart() {
+    const ctx = document.getElementById('doublesChart').getContext('2d');
+    const doubles = Object.keys(this.stats).sort((a,b)=>a-b);
+    const averages = doubles.map(d => this.stats[d].average);
+
+    const backgroundColors = doubles.map(d => {
+      if(d==25) return '#dc3545';
+      const NUMBERS = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+      return NUMBERS.indexOf(parseInt(d)) % 2 === 0 ? '#dc3545' : '#28a745';
+    });
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: { labels: doubles.map(d=>`D${d}`), datasets:[{ data: averages, backgroundColor: backgroundColors, borderColor: backgroundColors, borderWidth:1, borderRadius:8, borderSkipped:false }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,max:15}, x:{grid:{display:false}}} }
+    });
+  }
+
+  renderDailyChart() {
+    const ctx = document.getElementById('dailyChart').getContext('2d');
+    const dailyData = {};
+
+    for (const session of this.sessions) {
+      const date = session.date.split('T')[0];
+      if (!dailyData[date]) dailyData[date] = { totalHits:0, sessionCount:0 };
+      dailyData[date].totalHits += session.totalHits;
+      dailyData[date].sessionCount++;
+    }
+
+    const dates = Object.keys(dailyData).sort();
+    const averages = dates.map(date => dailyData[date].totalHits / dailyData[date].sessionCount);
+
+    new Chart(ctx, {
+      type: 'line',
+      data: { labels: dates, datasets:[{ label:'Average Hits per Session', data:averages, borderColor:'#667eea', backgroundColor:'rgba(102,126,234,0.1)', fill:true, tension:0.4 }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+    });
+  }
+
+  renderHeatmapChart(limitDays=30) {
+    const container = document.getElementById('heatmapContainer');
+    container.innerHTML = '';
+
+    const allDates = [...new Set(this.sessions.map(s=>s.date.split('T')[0]))].sort((a,b)=>new Date(b)-new Date(a));
+    const trimmed = allDates.length > limitDays;
+    const datesToShow = trimmed ? allDates.slice(0, limitDays) : allDates;
+
+    const doubles = Object.keys(this.stats).sort((a,b)=>a-b);
+    const dateDoubleContainers = {};
+
+    for(const session of this.sessions){
+      const date = session.date.split('T')[0];
+      if(!datesToShow.includes(date)) continue;
+      for(const dbl of doubles){
+        const key=`${date}-${dbl}`;
+        const hits = session.doubles[dbl]||0;
+        if(!dateDoubleContainers[key]) dateDoubleContainers[key]={sessions:[],totalHits:0};
+        dateDoubleContainers[key].sessions.push({...session,hits,double:dbl});
+        dateDoubleContainers[key].totalHits+=hits;
+      }
+    }
+
+    const table=document.createElement('table');
+    table.className='heatmap-table';
+    const headerRow=document.createElement('tr');
+    headerRow.innerHTML=`<th></th>${doubles.map(d=>`<th>D${d}</th>`).join('')}`;
+    table.appendChild(headerRow);
+
+    const maxHits = Math.max(1, ...Object.values(dateDoubleContainers).map(c=>c.totalHits));
+
+    for(const date of datesToShow){
+      const row=document.createElement('tr');
+      const dateHeader=document.createElement('td');
+      dateHeader.className='date-column';
+      dateHeader.textContent=this.formatDate(date);
+      row.appendChild(dateHeader);
+
+      for(const d of doubles){
+        const cell=document.createElement('td');
+        const key=`${date}-${d}`;
+        const containerData=dateDoubleContainers[key];
+
+        if(containerData && containerData.sessions.length>0){
+          const sessionContainer=document.createElement('div');
+          sessionContainer.style.display='flex';
+          sessionContainer.style.flexDirection='column';
+          sessionContainer.style.gap='2px';
+
+          containerData.sessions.forEach(session=>{
+            const sessionElement=document.createElement('div');
+            sessionElement.style.color='white';
+            sessionElement.style.textShadow='1px 1px 2px rgba(0,0,0,0.7)';
+            sessionElement.style.padding='4px';
+            sessionElement.style.textAlign='center';
+            sessionElement.style.borderRadius='3px';
+            sessionElement.style.fontWeight='bold';
+
+            if(session.hits===0){
+              sessionElement.style.backgroundColor='rgba(255,150,150,0.7)';
+              sessionElement.textContent='0';
+            }else{
+              const intensity=Math.min(session.hits/maxHits,1);
+              sessionElement.style.backgroundColor=`rgba(102,126,234,${0.2+0.8*intensity})`;
+              sessionElement.textContent=session.hits;
+            }
+
+            sessionContainer.appendChild(sessionElement);
+          });
+
+          cell.appendChild(sessionContainer);
+        } else {
+          cell.textContent='-';
+          cell.style.backgroundColor='#f9f9f9';
+        }
+        row.appendChild(cell);
+      }
+      table.appendChild(row);
+    }
+
+    container.appendChild(table);
+
+    const legend=document.createElement('div');
+    legend.className='heatmap-legend';
+    legend.innerHTML=`
+      <span class="legend-label">Fewer</span>
+      <span class="legend-color" style="background-color: rgba(102,126,234,0.3)"></span>
+      <span class="legend-color" style="background-color: rgba(102,126,234,0.6)"></span>
+      <span class="legend-color" style="background-color: rgba(102,126,234,0.9)"></span>
+      <span class="legend-label">More</span>
+    `;
+    container.appendChild(legend);
+
+    if(trimmed){
+      const toggle=document.createElement('button');
+      toggle.className='btn btn-secondary heatmap-toggle';
+      toggle.textContent='Show All';
+      toggle.addEventListener('click',()=>this.renderHeatmapChart(allDates.length));
+      container.appendChild(toggle);
+    }
+  }
+
+  formatDate(dateString){
+    const date=new Date(dateString);
+    return date.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  }
+
+  renderBestWorstChart(){
+    const ctx=document.getElementById('bestWorstChart').getContext('2d');
+    const ALL_DOUBLES=[...Array(20).keys()].map(i=>i+1).concat(25);
+
+    const all=ALL_DOUBLES.map(d=>({double:d,average:this.stats[d].average})).sort((a,b)=>b.average-a.average);
+    const best5=all.slice(0,5);
+    const worst5=all.slice(-5);
+
+    const labels=[...best5.map(d=>`D${d.double} (${d.average.toFixed(2)})`),...worst5.map(d=>`D${d.double} (${d.average.toFixed(2)})`)];
+    const data=[...best5.map(d=>d.average),...worst5.map(d=>d.average)];
+
+    new Chart(ctx,{
+      type:'pie',
+      data:{labels,datasets:[{data,borderWidth:2,borderColor:'#fff',backgroundColor:['#28a745','#218838','#1e7e34','#1c7430','#19692c','#dc3545','#c82333','#bd2130','#b21f2d','#a71e2a']}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+    });
+  }
+
+  renderDistributionChart(){
+    const ctx=document.getElementById('distributionChart').getContext('2d');
+
+    const maxHits=Math.max(...this.sessions.map(s=>s.totalHits),100);
+    const binSize=10;
+    const numBins=Math.ceil(maxHits/binSize);
+    const hitCounts=Array(numBins).fill(0);
+
+    this.sessions.forEach(s=>{
+      const binIndex=Math.floor(s.totalHits/binSize);
+      if(binIndex<hitCounts.length) hitCounts[binIndex]++;
+    });
+
+    new Chart(ctx,{
+      type:'bar',
+      data:{labels:Array.from({length:numBins},(_,i)=>`${i*binSize}-${(i+1)*binSize-1}`),datasets:[{label:'Frequency',data:hitCounts,backgroundColor:'rgba(118,75,162,0.8)',borderColor:'#764ba2',borderWidth:1,borderRadius:8,borderSkipped:false}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{display:false}},x:{title:{display:true,text:'Total Hits per Complete Session'},grid:{display:false}}}}
+    });
+  }
+}
+
+function setupClearStatsButton(){
+  const clearButton=document.getElementById('clearStats');
+  if(!clearButton) return;
+  clearButton.addEventListener('click',function(){
+    if(confirm('Are you sure you want to clear all your progress data? This cannot be undone.')){
+      localStorage.removeItem('doublesSessionsV2');
+      alert('All progress data has been cleared.');
+      location.reload();
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  new ProgressReport();
+  setupClearStatsButton();
+});
+</script>
 </body>
 </html>
