@@ -39,32 +39,20 @@
 <script>
 class DartboardApp {
   constructor() {
-    // Constants
     this.NUMBERS = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
     this.ALL_DOUBLES = [...Array(20).keys()].map(i => i + 1).concat(25);
-    this.STORAGE_KEYS = {
-      remaining: 'remainingDoubles',
-      current: 'currentDouble',
-      sessions: 'doublesSessions'
-    };
-    
-    // Board dimensions
-    this.DIMS = {
-      outerRadius: 200,
-      doubleWidth: 20,
-      trebleRadius: 120,
-      trebleWidth: 20,
-      bullOuter: 16,
-      bullInner: 8
-    };
-    
-    // State
+    this.STORAGE_KEYS = { remaining: 'remainingDoubles', current: 'currentDouble', currentSession: 'currentSession', sessions: 'doublesSessionsV2' };
+
+    this.DIMS = { outerRadius: 200, doubleWidth: 20, trebleRadius: 120, trebleWidth: 20, bullOuter: 16, bullInner: 8 };
+
     this.remaining = this.loadData(this.STORAGE_KEYS.remaining) || [...this.ALL_DOUBLES];
     this.currentDouble = this.loadData(this.STORAGE_KEYS.current);
+
+    this.sessionData = this.loadData(this.STORAGE_KEYS.currentSession) || this.createNewSession();
+
     this.totalHits = 0;
     this.totalAttempts = 0;
-    
-    // DOM elements
+
     this.elements = {
       svg: document.getElementById('dartboard'),
       hits: document.getElementById('hits'),
@@ -75,10 +63,27 @@ class DartboardApp {
       currentDoubleText: document.getElementById('currentDoubleText'),
       currentDoubleDisplay: document.getElementById('currentDoubleDisplay')
     };
-    
+
     this.init();
   }
-  
+
+  createNewSession() {
+    return {
+      sessionId: `session_${Date.now()}`,
+      date: new Date().toISOString(),
+      doubles: {},
+      totalHits: 0,
+      timestamp: Date.now()
+    };
+  }
+
+  loadData(key) {
+    try { const data = localStorage.getItem(key); return data ? JSON.parse(data) : null; } catch { return null; }
+  }
+  saveData(key, data) {
+    try { if (data===null) localStorage.removeItem(key); else localStorage.setItem(key,JSON.stringify(data)); } catch(e){console.warn(e);}
+  }
+
   init() {
     this.bindEvents();
     this.drawBoard();
@@ -86,374 +91,158 @@ class DartboardApp {
     this.setupCurrentDouble();
     this.elements.hits.focus();
   }
-  
+
   bindEvents() {
-    this.elements.hits.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        this.submitRound();
-        e.preventDefault();
-      }
-    });
-    
-    this.elements.hits.addEventListener('focus', () => this.elements.hits.select());
-    this.elements.hits.addEventListener('blur', () => 
-      setTimeout(() => this.elements.hits.focus(), 0));
-    
-    this.elements.submit.addEventListener('click', () => this.submitRound());
-    this.elements.export.addEventListener('click', () => this.exportStats());
+    this.elements.hits.addEventListener('keydown', e => { if(e.key==='Enter'){this.submitRound(); e.preventDefault();} });
+    this.elements.hits.addEventListener('focus', ()=>this.elements.hits.select());
+    this.elements.hits.addEventListener('blur', ()=>setTimeout(()=>this.elements.hits.focus(),0));
+    this.elements.submit.addEventListener('click', ()=>this.submitRound());
+    this.elements.export.addEventListener('click', ()=>this.exportStats());
   }
-  
-  getDoubleColor(doubleNum) {
-    if (doubleNum === 25) {
-      return 'red';
-    }
-    const idx = this.NUMBERS.indexOf(doubleNum);
-    return (idx % 2 === 0) ? 'red' : 'green';
-  }
-  
-  updateCurrentDoubleDisplay() {
-    if (this.currentDouble !== null) {
-      this.elements.currentDoubleText.textContent = `D${this.currentDouble}`;
+
+  getDoubleColor(dbl){ return dbl===25?'red':(this.NUMBERS.indexOf(dbl)%2===0?'red':'green'); }
+  updateCurrentDoubleDisplay(){
+    if(this.currentDouble!==null){
+      this.elements.currentDoubleText.textContent=`D${this.currentDouble}`;
       this.elements.currentDoubleDisplay.classList.remove('green');
-      const color = this.getDoubleColor(this.currentDouble);
-      if (color === 'green') {
-        this.elements.currentDoubleDisplay.classList.add('green');
-      }
-    } else {
-      this.elements.currentDoubleText.textContent = '-';
-      this.elements.currentDoubleDisplay.classList.remove('green');
+      if(this.getDoubleColor(this.currentDouble)==='green') this.elements.currentDoubleDisplay.classList.add('green');
+    } else { this.elements.currentDoubleText.textContent='-'; this.elements.currentDoubleDisplay.classList.remove('green'); }
+  }
+
+  polarToCartesian(cx,cy,r,angleDeg){
+    const a=(angleDeg-90)*Math.PI/180; return {x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};
+  }
+  createArcPath(cx,cy,rInner,rOuter,startAngle,endAngle){
+    const so=this.polarToCartesian(cx,cy,rOuter,endAngle), eo=this.polarToCartesian(cx,cy,rOuter,startAngle);
+    const si=this.polarToCartesian(cx,cy,rInner,startAngle), ei=this.polarToCartesian(cx,cy,rInner,endAngle);
+    const la=endAngle-startAngle<=180?0:1;
+    return ['M',so.x,so.y,'A',rOuter,rOuter,0,la,0,eo.x,eo.y,'L',si.x,si.y,'A',rInner,rInner,0,la,1,ei.x,ei.y,'Z'].join(' ');
+  }
+  createElement(type,attrs={}){ const el=document.createElementNS('http://www.w3.org/2000/svg',type); Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v)); return el; }
+
+  drawBoard(){
+    const svg=this.elements.svg, {NUMBERS,DIMS}=this, {outerRadius,doubleWidth,trebleRadius,trebleWidth,bullOuter,bullInner}=DIMS;
+    svg.innerHTML='';
+    for(let i=0;i<20;i++){
+      const startAngle=-9+i*18,endAngle=-9+(i+1)*18,isEven=i%2===0;
+      const singleColor=isEven?'#000':'#fff',specialColor=isEven?'#dc3545':'#28a745';
+      svg.appendChild(this.createElement('path',{d:this.createArcPath(0,0,outerRadius-doubleWidth,outerRadius,startAngle,endAngle),fill:specialColor,id:`double${NUMBERS[i]}`,class:'segment'}));
+      svg.appendChild(this.createElement('path',{d:this.createArcPath(0,0,trebleRadius-trebleWidth,trebleRadius,startAngle,endAngle),fill:specialColor,class:'segment'}));
+      svg.appendChild(this.createElement('path',{d:this.createArcPath(0,0,trebleRadius,outerRadius-doubleWidth,startAngle,endAngle),fill:singleColor,class:'segment'}));
+      svg.appendChild(this.createElement('path',{d:this.createArcPath(0,0,bullOuter,trebleRadius-trebleWidth,startAngle,endAngle),fill:singleColor,class:'segment'}));
+      const angleMid=(startAngle+endAngle)/2,pos=this.polarToCartesian(0,0,outerRadius+15,angleMid), numberText=this.createElement('text',{x:pos.x,y:pos.y,class:'number'});
+      numberText.textContent=NUMBERS[i]; svg.appendChild(numberText);
     }
-  }
-  
-  loadData(key) {
-    try {
-      const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : null;
-    } catch {
-      return null;
-    }
-  }
-  
-  saveData(key, data) {
-    try {
-      if (data === null) {
-        localStorage.removeItem(key);
-      } else {
-        localStorage.setItem(key, JSON.stringify(data));
-      }
-    } catch (e) {
-      console.warn('Failed to save data:', e);
-    }
-  }
-  
-  saveSession(hits) {
-    const sessions = this.loadData(this.STORAGE_KEYS.sessions) || [];
-    const session = {
-        date: new Date().toISOString(),
-        double: this.currentDouble,
-        hits: hits,
-        timestamp: Date.now()
-    };
-    sessions.push(session);
-    this.saveData(this.STORAGE_KEYS.sessions, sessions);
-    return session;
+    svg.appendChild(this.createElement('circle',{r:bullOuter,fill:'#28a745'}));
+    svg.appendChild(this.createElement('circle',{r:bullInner,fill:'#dc3545',id:'double25'}));
   }
 
-  getSessionStats() {
-    const sessions = this.loadData(this.STORAGE_KEYS.sessions) || [];
-    const stats = {};
-    
-    this.ALL_DOUBLES.forEach(dbl => {
-        stats[dbl] = { attempts: 0, totalHits: 0, sessions: [] };
-    });
-
-    sessions.forEach(session => {
-        const dbl = session.double;
-        if (stats[dbl]) {
-            stats[dbl].attempts++;
-            stats[dbl].totalHits += session.hits;
-            stats[dbl].sessions.push(session);
-        }
-    });
-
-    return { stats, sessions };
+  setupCurrentDouble(){
+    if(this.currentDouble!==null){ this.highlightDouble(this.currentDouble); this.updateCurrentDoubleDisplay(); }
+    else this.pickRandomDouble();
   }
 
-  getTodaysSessionStats() {
-    const sessions = this.loadData(this.STORAGE_KEYS.sessions) || [];
-    const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
-    const todaysSessions = sessions.filter(session => session.date.startsWith(today));
-    
-    const stats = {};
-    
-    this.ALL_DOUBLES.forEach(dbl => {
-        stats[dbl] = { attempts: 0, totalHits: 0, sessions: [] };
-    });
-
-    todaysSessions.forEach(session => {
-        const dbl = session.double;
-        if (stats[dbl]) {
-            stats[dbl].attempts++;
-            stats[dbl].totalHits += session.hits;
-            stats[dbl].sessions.push(session);
-        }
-    });
-
-    return { stats, sessions: todaysSessions };
-  }
-
-  polarToCartesian(cx, cy, r, angleDeg) {
-    const angleRad = (angleDeg - 90) * Math.PI / 180;
-    return {
-      x: cx + r * Math.cos(angleRad),
-      y: cy + r * Math.sin(angleRad)
-    };
-  }
-  
-  createArcPath(cx, cy, rInner, rOuter, startAngle, endAngle) {
-    const startOuter = this.polarToCartesian(cx, cy, rOuter, endAngle);
-    const endOuter = this.polarToCartesian(cx, cy, rOuter, startAngle);
-    const startInner = this.polarToCartesian(cx, cy, rInner, startAngle);
-    const endInner = this.polarToCartesian(cx, cy, rInner, endAngle);
-    const largeArc = endAngle - startAngle <= 180 ? 0 : 1;
-    
-    return [
-      'M', startOuter.x, startOuter.y,
-      'A', rOuter, rOuter, 0, largeArc, 0, endOuter.x, endOuter.y,
-      'L', startInner.x, startInner.y,
-      'A', rInner, rInner, 0, largeArc, 1, endInner.x, endInner.y,
-      'Z'
-    ].join(' ');
-  }
-  
-  createElement(type, attrs = {}) {
-    const el = document.createElementNS('http://www.w3.org/2000/svg', type);
-    Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
-    return el;
-  }
-  
-  drawBoard() {
-    const svg = this.elements.svg;
-    const { NUMBERS, DIMS } = this;
-    const { outerRadius, doubleWidth, trebleRadius, trebleWidth, bullOuter, bullInner } = DIMS;
-    
-    svg.innerHTML = '';
-    
-    for (let i = 0; i < 20; i++) {
-      const startAngle = -9 + i * 18;
-      const endAngle = -9 + (i + 1) * 18;
-      const isEven = i % 2 === 0;
-      const singleColor = isEven ? '#000' : '#fff';
-      const specialColor = isEven ? '#dc3545' : '#28a745';
-      
-      const doublePath = this.createElement('path', {
-        d: this.createArcPath(0, 0, outerRadius - doubleWidth, outerRadius, startAngle, endAngle),
-        fill: specialColor,
-        id: `double${NUMBERS[i]}`,
-        class: 'segment'
-      });
-      svg.appendChild(doublePath);
-      
-      svg.appendChild(this.createElement('path', {
-        d: this.createArcPath(0, 0, trebleRadius - trebleWidth, trebleRadius, startAngle, endAngle),
-        fill: specialColor,
-        class: 'segment'
-      }));
-      
-      svg.appendChild(this.createElement('path', {
-        d: this.createArcPath(0, 0, trebleRadius, outerRadius - doubleWidth, startAngle, endAngle),
-        fill: singleColor,
-        class: 'segment'
-      }));
-      
-      svg.appendChild(this.createElement('path', {
-        d: this.createArcPath(0, 0, bullOuter, trebleRadius - trebleWidth, startAngle, endAngle),
-        fill: singleColor,
-        class: 'segment'
-      }));
-      
-      const angleMid = (startAngle + endAngle) / 2;
-      const pos = this.polarToCartesian(0, 0, outerRadius + 15, angleMid);
-      const numberText = this.createElement('text', {
-        x: pos.x,
-        y: pos.y,
-        class: 'number'
-      });
-      numberText.textContent = NUMBERS[i];
-      svg.appendChild(numberText);
-    }
-    
-    svg.appendChild(this.createElement('circle', {
-      r: bullOuter,
-      fill: '#28a745'
-    }));
-    
-    svg.appendChild(this.createElement('circle', {
-      r: bullInner,
-      fill: '#dc3545',
-      id: 'double25'
-    }));
-  }
-  
-  setupCurrentDouble() {
-    if (this.currentDouble !== null) {
-      this.highlightDouble(this.currentDouble);
-      this.updateCurrentDoubleDisplay();
-    } else {
-      this.pickRandomDouble();
-    }
-  }
-  
-  pickRandomDouble() {
-    if (this.remaining.length === 0) {
-      this.handleRoundComplete();
-      return;
-    }
-    
-    const idx = Math.floor(Math.random() * this.remaining.length);
-    this.currentDouble = this.remaining.splice(idx, 1)[0];
-    this.saveData(this.STORAGE_KEYS.remaining, this.remaining);
-    this.saveData(this.STORAGE_KEYS.current, this.currentDouble);
-    
+  pickRandomDouble(){
+    if(this.remaining.length===0){ this.handleRoundComplete(); return; }
+    const idx=Math.floor(Math.random()*this.remaining.length);
+    this.currentDouble=this.remaining.splice(idx,1)[0];
+    this.saveData(this.STORAGE_KEYS.remaining,this.remaining);
+    this.saveData(this.STORAGE_KEYS.current,this.currentDouble);
     this.clearHighlights();
     this.highlightDouble(this.currentDouble);
     this.updateCurrentDoubleDisplay();
     this.elements.hits.focus();
   }
-  
-  handleRoundComplete() {
-    this.elements.submit.disabled = true;
-    this.elements.hits.disabled = true;
-    this.clearHighlights();
-    this.elements.currentDoubleText.textContent = '-';
-    this.elements.currentDoubleDisplay.classList.remove('green');
-    
-    setTimeout(() => {
-      alert('All doubles completed!');
-      this.resetRound();
-    }, 0);
+
+  handleRoundComplete(){
+    this.elements.submit.disabled=true; this.elements.hits.disabled=true;
+    this.clearHighlights(); this.elements.currentDoubleText.textContent='-'; this.elements.currentDoubleDisplay.classList.remove('green');
+    // save completed session in doublesSessions
+    let sessions=this.loadData(this.STORAGE_KEYS.sessions)||[];
+    sessions.push(this.sessionData);
+    this.saveData(this.STORAGE_KEYS.sessions,sessions);
+    // remove currentSession
+    this.saveData(this.STORAGE_KEYS.currentSession,null);
+    setTimeout(()=>{ alert('All doubles completed!'); this.resetRound(); },0);
   }
-  
-  resetRound() {
-    this.remaining = [...this.ALL_DOUBLES];
-    this.currentDouble = null;
-    this.saveData(this.STORAGE_KEYS.remaining, this.remaining);
-    this.saveData(this.STORAGE_KEYS.current, null);
-    
-    this.elements.submit.disabled = false;
-    this.elements.hits.disabled = false;
+
+  resetRound(){
+    this.remaining=[...this.ALL_DOUBLES]; this.currentDouble=null;
+    this.saveData(this.STORAGE_KEYS.remaining,this.remaining);
+    this.saveData(this.STORAGE_KEYS.current,null);
+    this.sessionData=this.createNewSession();
+    this.saveData(this.STORAGE_KEYS.currentSession,this.sessionData);
+    this.elements.submit.disabled=false; this.elements.hits.disabled=false;
     this.pickRandomDouble();
+    this.renderStats();
   }
-  
-  highlightDouble(doubleNum) {
-    const el = document.getElementById(`double${doubleNum}`);
-    if (el) el.setAttribute('fill', '#ffd700');
-  }
-  
-  clearHighlights() {
-    this.ALL_DOUBLES.forEach(dbl => {
-      const el = document.getElementById(`double${dbl}`);
-      if (el) {
-        if (dbl === 25) {
-          el.setAttribute('fill', '#dc3545');
-        } else {
-          const idx = this.NUMBERS.indexOf(dbl);
-          const isEven = idx % 2 === 0;
-          el.setAttribute('fill', isEven ? '#dc3545' : '#28a745');
-        }
-      }
-    });
-  }
-  
-  submitRound() {
-    if (this.currentDouble === null) return;
-    
-    const hits = parseInt(this.elements.hits.value, 10);
-    if (isNaN(hits) || hits < 0 || hits > 15) {
-      alert('Enter valid hits (0-15)');
-      return;
-    }
-    
-    this.saveSession(hits);
+
+  highlightDouble(dbl){ const el=document.getElementById(`double${dbl}`); if(el) el.setAttribute('fill','#ffd700'); }
+  clearHighlights(){ this.ALL_DOUBLES.forEach(dbl=>{ const el=document.getElementById(`double${dbl}`); if(el){ if(dbl===25) el.setAttribute('fill','#dc3545'); else el.setAttribute('fill',this.NUMBERS.indexOf(dbl)%2===0?'#dc3545':'#28a745'); } }); }
+
+  submitRound(){
+    if(this.currentDouble===null) return;
+    const hits=parseInt(this.elements.hits.value,10);
+    if(isNaN(hits)||hits<0||hits>15){ alert('Enter valid hits (0-15)'); return; }
+    this.sessionData.doubles[this.currentDouble]=hits;
+    this.sessionData.totalHits+=hits;
+    this.saveData(this.STORAGE_KEYS.currentSession,this.sessionData);
     this.renderStats();
     this.pickRandomDouble();
     this.elements.hits.select();
   }
-  
-  renderStats() {
-    const { stats } = this.getTodaysSessionStats();
-    const fragment = document.createDocumentFragment();
-    this.totalHits = 0;
-    this.totalAttempts = 0;
 
-    this.ALL_DOUBLES.forEach(dbl => {
-      const data = stats[dbl];
-      const li = document.createElement('li');
-      li.className = 'stats-item';
+  renderStats(){
+    // Aggregate today's sessions (completed + current)
+    const allSessions = this.loadData(this.STORAGE_KEYS.sessions)||[];
+    const today = new Date().toISOString().split('T')[0];
+    const todaysSessions = allSessions.filter(s => s.date.startsWith(today));
+    if(this.sessionData.date.startsWith(today)) todaysSessions.push(this.sessionData);
 
-      let colorClass;
-      if(dbl === 25) colorClass = 'badge-red';
-      else {
-        const idx = this.NUMBERS.indexOf(dbl);
-        colorClass = (idx % 2 === 0) ? 'badge-red' : 'badge-green';
-      }
-
-      const badge = document.createElement('span');
-      badge.className = `badge ${colorClass}`;
-      badge.textContent = `D${dbl}`;
-      li.appendChild(badge);
-
-      const text = document.createElement('span');
-      if (data && data.attempts > 0) {
-        this.totalHits += data.totalHits;
-        this.totalAttempts += data.attempts;
-        const avg = (data.totalHits / data.attempts).toFixed(2);
-        text.textContent = `${data.totalHits} hits in ${data.attempts} rounds (avg: ${avg})`;
-      } else {
-        text.textContent = 'No data yet';
-        text.style.color = '#999';
-      }
-      li.appendChild(text);
-      fragment.appendChild(li);
+    // Aggregate hits per double
+    const stats={}; this.ALL_DOUBLES.forEach(d=>stats[d]={attempts:0,totalHits:0});
+    todaysSessions.forEach(sess => {
+      Object.entries(sess.doubles).forEach(([dbl,hits])=>{
+        dbl=parseInt(dbl,10);
+        stats[dbl].attempts++;
+        stats[dbl].totalHits+=hits;
+      });
     });
 
-    this.elements.results.innerHTML = '';
-    this.elements.results.appendChild(fragment);
-    this.elements.totals.textContent = `Total hits: ${this.totalHits} (${this.totalAttempts} rounds)`;
+    const fragment=document.createDocumentFragment();
+    this.totalHits=0; this.totalAttempts=0;
+    this.ALL_DOUBLES.forEach(dbl=>{
+      const data=stats[dbl], li=document.createElement('li'); li.className='stats-item';
+      const colorClass=dbl===25?'badge-red':(this.NUMBERS.indexOf(dbl)%2===0?'badge-red':'badge-green');
+      const badge=document.createElement('span'); badge.className=`badge ${colorClass}`; badge.textContent=`D${dbl}`; li.appendChild(badge);
+      const text=document.createElement('span');
+      if(data.attempts>0){ this.totalHits+=data.totalHits; this.totalAttempts+=data.attempts; text.textContent=`${data.totalHits} hits in ${data.attempts} rounds`; }
+      else { text.textContent='No data yet'; text.style.color='#999'; }
+      li.appendChild(text); fragment.appendChild(li);
+    });
+
+    this.elements.results.innerHTML=''; this.elements.results.appendChild(fragment);
+    this.elements.totals.textContent=`Total hits: ${this.totalHits} (${this.totalAttempts} rounds)`;
   }
-  
-  exportStats() {
-    const { stats } = this.getSessionStats();
-    let exportText = 'Doubles Practice Statistics\n';
-    exportText += '============================\n\n';
-    
-    const orderedDoubles = [...Array(20).keys()].map(i => i + 1).concat(25);
-    
-    orderedDoubles.forEach(dbl => {
-      const data = stats[dbl];
-      if (data && data.attempts > 0) {
-        const avg = (data.totalHits / data.attempts).toFixed(2);
-        exportText += `[D${dbl}] ${data.totalHits} hits in ${data.attempts} rounds (avg: ${avg})\n`;
-      } else {
-        exportText += `[D${dbl}] No data yet\n`;
-      }
+
+  exportStats(){
+    const sessions=this.loadData(this.STORAGE_KEYS.sessions)||[];
+    let exportText='Doubles Practice Statistics\n============================\n\n';
+    sessions.forEach(sess=>{
+      exportText+=`Session: ${sess.sessionId} (${sess.date})\n`;
+      this.ALL_DOUBLES.forEach(dbl=>{
+        const hits=sess.doubles[dbl]||0;
+        exportText+=`D${dbl}: ${hits} hits\n`;
+      });
+      exportText+=`Total hits: ${sess.totalHits}\n\n`;
     });
-    
-    exportText += `\nTotal hits: ${this.totalHits} (${this.totalAttempts} rounds)`;
-    
-    const blob = new Blob([exportText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `doubles-practice-stats-${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const blob=new Blob([exportText],{type:'text/plain'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;
+    a.download=`doubles-practice-stats-${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 }
 
-// Initialize app
 new DartboardApp();
 </script>
 
