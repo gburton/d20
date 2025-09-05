@@ -212,13 +212,28 @@
         const datesToShow = trimmed ? allDates.slice(0, limitDays) : allDates;
 
         const doubles = Object.keys(this.stats).sort((a, b) => parseInt(a) - parseInt(b));
-        const dateDoubleMap = {};
+        const dateDoubleContainers = {};
+        
         for (const s of this.sessions) {
           const date = s.date.split('T')[0];
           if (!datesToShow.includes(date)) continue;
           const key = `${date}-${s.double}`;
-          dateDoubleMap[key] = (dateDoubleMap[key] || 0) + s.hits;
+          
+          if (!dateDoubleContainers[key]) {
+            dateDoubleContainers[key] = {
+              sessions: [],
+              totalHits: 0
+            };
+          }
+          dateDoubleContainers[key].sessions.push(s);
+          dateDoubleContainers[key].totalHits += s.hits;
         }
+    
+        Object.keys(dateDoubleContainers).forEach(key => {
+          dateDoubleContainers[key].sessions.sort((a, b) => 
+            new Date(b.date) - new Date(a.date)
+          );
+        });
 
         const table = document.createElement('table');
         table.className = 'heatmap-table';
@@ -226,7 +241,7 @@
         headerRow.innerHTML = `<th></th>${doubles.map(d => `<th>D${d}</th>`).join('')}`;
         table.appendChild(headerRow);
 
-        let maxHits = Math.max(1, ...Object.values(dateDoubleMap));
+        let maxHits = Math.max(1, ...Object.values(dateDoubleContainers).map(c => c.totalHits));
 
         for (const date of datesToShow) {
           const row = document.createElement('tr');
@@ -238,12 +253,38 @@
           for (const d of doubles) {
             const cell = document.createElement('td');
             const key = `${date}-${d}`;
-            const hits = dateDoubleMap[key];
-            if (hits) {
-              const intensity = Math.min(hits / maxHits, 1);
-              cell.className = 'heatmap-cell';
-              cell.style.backgroundColor = `rgba(102,126,234,${0.2 + 0.8 * intensity})`;
-              cell.textContent = hits;
+            const container = dateDoubleContainers[key];
+            
+            if (container && container.sessions.length > 0) {
+              const sessionContainer = document.createElement('div');
+              sessionContainer.style.display = 'flex';
+              sessionContainer.style.flexDirection = 'column';
+              sessionContainer.style.gap = '2px';
+                
+              container.sessions.forEach(session => {
+                const sessionElement = document.createElement('div');
+                // PRESERVE ORIGINAL STYLING: white text with shadow
+                sessionElement.style.color = 'white';
+                sessionElement.style.textShadow = '1px 1px 2px rgba(0,0,0,0.7)';
+                sessionElement.style.padding = '4px';
+                sessionElement.style.textAlign = 'center';
+                sessionElement.style.borderRadius = '3px';
+                sessionElement.style.fontWeight = 'bold';
+                
+                if (session.hits === 0) {
+                  sessionElement.style.backgroundColor = 'rgba(255, 150, 150, 0.7)';
+                  sessionElement.textContent = '0';
+                } else {
+                  const intensity = Math.min(session.hits / maxHits, 1);
+                  sessionElement.style.backgroundColor = `rgba(102,126,234,${0.2 + 0.8 * intensity})`;
+                  sessionElement.textContent = session.hits;
+                }
+                    
+                sessionContainer.appendChild(sessionElement);
+              });
+                
+              cell.appendChild(sessionContainer);
+              cell.style.backgroundColor = '';
             } else {
               cell.textContent = '-';
               cell.style.backgroundColor = '#f9f9f9';
