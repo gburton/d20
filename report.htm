@@ -25,7 +25,7 @@
       </div>
 
       <div class="chart-container">
-        <h3 class="chart-title">📈 Average Progress</h3>
+        <h3 class="chart-title">📈 Hit Progress</h3>
         <div class="chart-wrapper"><canvas id="dailyChart"></canvas></div>
       </div>
 
@@ -178,7 +178,7 @@
           dailyData[date].attempts++;
         }
         const dates = Object.keys(dailyData).sort();
-        const averages = dates.map(date => dailyData[date].totalHits / dailyData[date].attempts);
+        const averages = dates.map(date => (dailyData[date].totalHits / dailyData[date].attempts) * 15);
 
         new Chart(ctx, {
           type: 'line',
