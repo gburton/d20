@@ -309,7 +309,7 @@ class ProgressReport {
     new Chart(ctx,{
       type:'bar',
       data:{labels:Array.from({length:numBins},(_,i)=>`${i*binSize}-${(i+1)*binSize-1}`),datasets:[{label:'Frequency',data:hitCounts,backgroundColor:'rgba(118,75,162,0.8)',borderColor:'#764ba2',borderWidth:1,borderRadius:8,borderSkipped:false}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{display:false}},x:{title:{display:true,text:'Total Hits per Complete Session'},grid:{display:false}}}}
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{display:false}, ticks: {precision: 0}},x:{title:{display:true,text:'Total Hits per Complete Session'},grid:{display:false}}}}
     });
   }
 }
