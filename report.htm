@@ -164,7 +164,7 @@ class ProgressReport {
     new Chart(ctx, {
       type: 'line',
       data: { labels: dates, datasets:[{ label:'Average Hits per Session', data:averages, borderColor:'#667eea', backgroundColor:'rgba(102,126,234,0.1)', fill:true, tension:0.4 }] },
-      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{ min: Math.floor(Math.min(...averages)) - 3, max: Math.ceil(Math.max(...averages)) + 3, ticks: {precision: 0}}} }
     });
   }
 
