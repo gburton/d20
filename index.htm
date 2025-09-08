@@ -232,6 +232,9 @@ class DartboardApp {
     const hits=parseInt(this.elements.hits.value,10);
     if(isNaN(hits)||hits<0||hits>15){ alert('Enter valid hits (0-15)'); return; }
     
+    // Update session date to current date/time when submitting rounds
+    this.sessionData.date = new Date().toISOString();
+    
     // Store as string to maintain consistency
     this.sessionData.doubles[this.currentDouble.toString()] = hits;
     this.sessionData.totalHits += hits;
