@@ -294,23 +294,81 @@ class ProgressReport {
     });
   }
 
-  renderDistributionChart(){
-    const ctx=document.getElementById('distributionChart').getContext('2d');
+  renderDistributionChart() {
+    const ctx = document.getElementById('distributionChart').getContext('2d');
 
-    const maxHits=Math.max(...this.sessions.map(s=>s.totalHits),100);
-    const binSize=10;
-    const numBins=Math.ceil(maxHits/binSize);
-    const hitCounts=Array(numBins).fill(0);
-
-    this.sessions.forEach(s=>{
-      const binIndex=Math.floor(s.totalHits/binSize);
-      if(binIndex<hitCounts.length) hitCounts[binIndex]++;
+    const maxHits = Math.max(...this.sessions.map(s => s.totalHits), 100);
+    const binSize = 5;
+    
+    // Find min and max non-zero bins
+    const hitCounts = {};
+    
+    this.sessions.forEach(s => {
+      const binIndex = Math.floor(s.totalHits / binSize);
+      hitCounts[binIndex] = (hitCounts[binIndex] || 0) + 1;
     });
 
-    new Chart(ctx,{
-      type:'bar',
-      data:{labels:Array.from({length:numBins},(_,i)=>`${i*binSize}-${(i+1)*binSize-1}`),datasets:[{label:'Frequency',data:hitCounts,backgroundColor:'rgba(118,75,162,0.8)',borderColor:'#764ba2',borderWidth:1,borderRadius:8,borderSkipped:false}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{display:false}, ticks: {precision: 0}},x:{title:{display:true,text:'Total Hits per Complete Session'},grid:{display:false}}}}
+    // Get all bin indices that have data
+    const binIndices = Object.keys(hitCounts).map(Number);
+  
+    let labels, data;
+    
+    if (binIndices.length === 0) {
+      // Handle case with no data
+      const minBin = 0;
+      const maxBin = 1;
+      const numBins = maxBin - minBin + 1;
+      
+      labels = Array.from({length: numBins}, (_, i) => {
+        const binStart = (minBin + i) * binSize;
+        return `${binStart}-${binStart + binSize - 1}`;
+      });
+      
+      data = Array(numBins).fill(0);
+    } else {
+      const minDataBin = Math.min(...binIndices);
+      const maxDataBin = Math.max(...binIndices);
+      const minBin = minDataBin - 1; // Add one bin below
+      const maxBin = maxDataBin + 1; // Add one bin above
+      
+      const numBins = maxBin - minBin + 1;
+      
+      // Create labels and data array - include ALL bins in the range
+      labels = Array.from({length: numBins}, (_, i) => {
+        const binStart = (minBin + i) * binSize;
+        return `${binStart}-${binStart + binSize - 1}`;
+      });
+      
+      data = Array.from({length: numBins}, (_, i) => {
+        const binIndex = minBin + i;
+        return hitCounts[binIndex] || 0; // This will be 0 for bins without data
+      });
+    }
+
+    // Single Chart instance creation
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Frequency',
+          data: data,
+          backgroundColor: 'rgba(118,75,162,0.8)',
+          borderColor: '#764ba2',
+          borderWidth: 1,
+          borderRadius: 8,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, grid: { display: false }, ticks: { precision: 0 } },
+          x: { title: { display: true, text: 'Total Hits per Complete Session' }, grid: { display: false } }
+        }
+      }
     });
   }
 }
