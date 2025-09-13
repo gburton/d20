@@ -392,3 +392,54 @@ h3 {
   }
 }
 
+.chain-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.chain-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.chain-item.current {
+  background-color: #e8f4fd;
+  border-color: #007bff;
+}
+
+.chain-double {
+  font-weight: bold;
+  min-width: 50px;
+}
+
+.chain-input {
+  width: 60px;
+  text-align: center;
+  padding: 4px;
+}
+
+.chain-input:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.chain-complete {
+  color: #28a745;
+  font-weight: bold;
+  margin-left: 10px;
+}
+
+.sequence-info {
+  margin: 15px 0;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-left: 4px solid #007bff;
+}

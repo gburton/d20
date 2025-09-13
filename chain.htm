@@ -1,0 +1,503 @@
+<!-- © 2025 G Burton, https://github.com/gburton/d20 - Licensed CC BY-NC 4.0 https://creativecommons.org/licenses/by-nc/4.0/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bunting Mental - Doubles Chains Practice</title>
+<link href="board.css" rel="stylesheet">
+</head>
+<body>
+
+<h1>Bunting Mental - Doubles Chains Practice</h1>
+
+<div class="container">
+  <div class="panel">
+    <div class="sequence-info" id="sequenceInfo">
+      <strong>Current Sequence:</strong> <span id="currentSequence">-</span>
+    </div>
+    
+    <h3>Enter Hits for Each Double</h3>
+    <div class="chain-container" id="chainContainer"></div>
+    
+    <div class="totals" id="totals" style="margin-top: 15px;">Total hits: 0</div>
+    <br>
+    <div style="display: flex; justify-content: space-between;">
+      <button class="btn btn-primary" id="exportStats">Export Todays Stats</button>
+    </div>
+  </div>
+
+  <div class="panel board-container">
+    <svg viewBox="-225 -225 450 450" id="dartboard"></svg>
+  </div>
+
+  <div class="panel">
+    <div class="current-double" id="currentDoubleDisplay">
+      <div class="current-double-text" id="currentDoubleText">-</div>
+    </div>
+  </div>
+</div>
+
+<script>
+class DoublesChainApp {
+  constructor() {
+    this.NUMBERS = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+    this.ALL_DOUBLES = [...Array(20).keys()].map(i => i + 1).concat(25);
+    
+    // Define the chains/sequences
+    this.CHAINS = [
+      [20, 10, 5],
+      [16, 8, 4, 2, 1],
+      [18, 9],
+      [12, 6, 3],
+      [14, 7]
+    ];
+    
+    this.STORAGE_KEYS = { 
+      currentChain: 'currentChain', 
+      currentChainIndex: 'currentChainIndex',
+      chainProgress: 'chainProgress',
+      chainSessions: 'chainSessionsV1' 
+    };
+
+    this.DIMS = { outerRadius: 200, doubleWidth: 20, trebleRadius: 120, trebleWidth: 20, bullOuter: 16, bullInner: 8 };
+
+    this.currentChain = this.loadData(this.STORAGE_KEYS.currentChain);
+    this.currentChainIndex = this.loadData(this.STORAGE_KEYS.currentChainIndex) || 0;
+    this.chainProgress = this.loadData(this.STORAGE_KEYS.chainProgress) || {};
+
+    // If no current chain or progress, select a new random chain
+    if (!this.currentChain) {
+      this.selectRandomChain();
+    }
+
+    this.sessionData = this.createNewSession();
+
+    this.elements = {
+      svg: document.getElementById('dartboard'),
+      chainContainer: document.getElementById('chainContainer'),
+      totals: document.getElementById('totals'),
+      export: document.getElementById('exportStats'),
+      currentDoubleText: document.getElementById('currentDoubleText'),
+      currentDoubleDisplay: document.getElementById('currentDoubleDisplay'),
+      completeChain: document.getElementById('completeChain'),
+      currentSequence: document.getElementById('currentSequence')
+    };
+
+    this.init();
+  }
+
+  createNewSession() {
+    return {
+      sessionId: `chain_session_${Date.now()}`,
+      date: new Date().toISOString(),
+      chain: this.currentChain ? [...this.currentChain] : [],
+      hits: {},
+      totalHits: 0,
+      timestamp: Date.now()
+    };
+  }
+
+  loadData(key) {
+    try { 
+      const data = localStorage.getItem(key); 
+      return data ? JSON.parse(data) : null;
+    } catch (e) { 
+      console.error(`Error loading ${key}:`, e);
+      return null; 
+    }
+  }
+
+  saveData(key, data) {
+    try { 
+      if (data === null || data === undefined) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, JSON.stringify(data));
+      }
+    } catch(e) {
+      console.error(`Error saving ${key}:`, e);
+    }
+  }
+
+  init() {
+    this.bindEvents();
+    this.drawBoard();
+    this.renderChainUI();
+    this.updateCurrentDoubleDisplay();
+    this.saveSessionData();
+  }
+
+  bindEvents() {
+    this.elements.export.addEventListener('click', () => this.exportStats());
+  }
+
+  selectRandomChain() {
+    const randomIndex = Math.floor(Math.random() * this.CHAINS.length);
+    this.currentChain = this.CHAINS[randomIndex];
+    this.currentChainIndex = 0;
+    this.chainProgress = {};
+    
+    this.saveData(this.STORAGE_KEYS.currentChain, this.currentChain);
+    this.saveData(this.STORAGE_KEYS.currentChainIndex, this.currentChainIndex);
+    this.saveData(this.STORAGE_KEYS.chainProgress, this.chainProgress);
+    
+    this.sessionData = this.createNewSession();
+  }
+
+  getDoubleColor(dbl) { 
+    return dbl === 25 ? 'red' : (this.NUMBERS.indexOf(dbl) % 2 === 0 ? 'red' : 'green'); 
+  }
+
+  updateCurrentDoubleDisplay() {
+    // Always clear all highlights first
+    this.clearHighlights();
+    
+    if (this.currentChain && this.currentChainIndex < this.currentChain.length) {
+      const currentDouble = this.currentChain[this.currentChainIndex];
+      this.elements.currentDoubleText.textContent = `D${currentDouble}`;
+      
+      this.elements.currentDoubleDisplay.classList.remove('green');
+      if (this.getDoubleColor(currentDouble) === 'green') {
+        this.elements.currentDoubleDisplay.classList.add('green');
+      }
+      
+      // Only highlight the current active double
+      this.highlightDouble(currentDouble);
+    } else {
+      this.elements.currentDoubleText.textContent = '-';
+      this.elements.currentDoubleDisplay.classList.remove('green');
+    }
+  }
+
+  polarToCartesian(cx, cy, r, angleDeg) {
+    const a = (angleDeg - 90) * Math.PI / 180; 
+    return {x: cx + r * Math.cos(a), y: cy + r * Math.sin(a)};
+  }
+
+  createArcPath(cx, cy, rInner, rOuter, startAngle, endAngle) {
+    const so = this.polarToCartesian(cx, cy, rOuter, endAngle);
+    const eo = this.polarToCartesian(cx, cy, rOuter, startAngle);
+    const si = this.polarToCartesian(cx, cy, rInner, startAngle);
+    const ei = this.polarToCartesian(cx, cy, rInner, endAngle);
+    const la = endAngle - startAngle <= 180 ? 0 : 1;
+    
+    return ['M', so.x, so.y, 'A', rOuter, rOuter, 0, la, 0, eo.x, eo.y, 'L', si.x, si.y, 'A', rInner, rInner, 0, la, 1, ei.x, ei.y, 'Z'].join(' ');
+  }
+
+  createElement(type, attrs = {}) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', type);
+    Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+    return el;
+  }
+
+  drawBoard() {
+    const svg = this.elements.svg;
+    const { NUMBERS, DIMS } = this;
+    const { outerRadius, doubleWidth, trebleRadius, trebleWidth, bullOuter, bullInner } = DIMS;
+    
+    svg.innerHTML = '';
+    
+    for (let i = 0; i < 20; i++) {
+      const startAngle = -9 + i * 18;
+      const endAngle = -9 + (i + 1) * 18;
+      const isEven = i % 2 === 0;
+      const singleColor = isEven ? '#000' : '#fff';
+      const specialColor = isEven ? '#dc3545' : '#28a745';
+      
+      svg.appendChild(this.createElement('path', {
+        d: this.createArcPath(0, 0, outerRadius - doubleWidth, outerRadius, startAngle, endAngle),
+        fill: specialColor,
+        id: `double${NUMBERS[i]}`,
+        class: 'segment'
+      }));
+      
+      svg.appendChild(this.createElement('path', {
+        d: this.createArcPath(0, 0, trebleRadius - trebleWidth, trebleRadius, startAngle, endAngle),
+        fill: specialColor,
+        class: 'segment'
+      }));
+      
+      svg.appendChild(this.createElement('path', {
+        d: this.createArcPath(0, 0, trebleRadius, outerRadius - doubleWidth, startAngle, endAngle),
+        fill: singleColor,
+        class: 'segment'
+      }));
+      
+      svg.appendChild(this.createElement('path', {
+        d: this.createArcPath(0, 0, bullOuter, trebleRadius - trebleWidth, startAngle, endAngle),
+        fill: singleColor,
+        class: 'segment'
+      }));
+      
+      const angleMid = (startAngle + endAngle) / 2;
+      const pos = this.polarToCartesian(0, 0, outerRadius + 15, angleMid);
+      const numberText = this.createElement('text', { x: pos.x, y: pos.y, class: 'number' });
+      
+      numberText.textContent = NUMBERS[i];
+      svg.appendChild(numberText);
+    }
+    
+    svg.appendChild(this.createElement('circle', { r: bullOuter, fill: '#28a745' }));
+    svg.appendChild(this.createElement('circle', { r: bullInner, fill: '#dc3545', id: 'double25' }));
+  }
+
+  renderChainUI() {
+    if (!this.currentChain) return;
+    
+    this.elements.currentSequence.textContent = this.currentChain.map(d => `D${d}`).join(' → ');
+    this.elements.chainContainer.innerHTML = '';
+    
+    let totalHits = 0;
+    
+    this.currentChain.forEach((double, index) => {
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'chain-item';
+      
+      if (index === this.currentChainIndex) {
+        itemDiv.classList.add('current');
+      }
+      
+      const doubleLabel = document.createElement('div');
+      doubleLabel.className = 'chain-double';
+      doubleLabel.textContent = `D${double}`;
+      itemDiv.appendChild(doubleLabel);
+      
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.max = '15';
+      input.className = 'chain-input';
+      input.value = this.chainProgress[double] || '';
+      input.dataset.double = double;
+      input.dataset.index = index;
+      
+      input.addEventListener('change', (e) => {
+        const hits = parseInt(e.target.value) || 0;
+        if (hits >= 0 && hits <= 15) {
+          this.chainProgress[double] = hits;
+          this.saveData(this.STORAGE_KEYS.chainProgress, this.chainProgress);
+          this.updateStats();
+        } else {
+          e.target.value = '';
+        }
+      });
+
+      // Add Enter key handler for navigation
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.handleEnterPress(input, index, double);
+        }
+      });
+      
+      itemDiv.appendChild(input);
+      
+      if (index < this.currentChainIndex) {
+        const completeSpan = document.createElement('span');
+        completeSpan.className = 'chain-complete';
+        completeSpan.textContent = '✓';
+        itemDiv.appendChild(completeSpan);
+      }
+      
+      this.elements.chainContainer.appendChild(itemDiv);
+      
+      // Add hits to total
+      if (this.chainProgress[double]) {
+        totalHits += parseInt(this.chainProgress[double]);
+      }
+    });
+    
+    this.elements.totals.textContent = `Total hits: ${totalHits}`;
+
+    // Auto-focus on current double input
+    setTimeout(() => {
+      const currentInput = document.querySelector(`.chain-input[data-index="${this.currentChainIndex}"]`);
+      if (currentInput) {
+        currentInput.focus();
+        currentInput.select();
+      }
+    }, 100);
+  }
+
+  handleEnterPress(input, index, double) {
+    // First, ensure the value is saved
+    const hits = parseInt(input.value) || 0;
+    if (hits >= 0 && hits <= 15) {
+      this.chainProgress[double] = hits;
+      this.saveData(this.STORAGE_KEYS.chainProgress, this.chainProgress);
+      this.updateStats();
+      
+      // Record hits in session data
+      this.sessionData.hits[double] = hits;
+      this.sessionData.totalHits = Object.values(this.sessionData.hits).reduce((sum, h) => sum + h, 0);
+      
+      // If this is the current double in sequence, advance
+      if (index === this.currentChainIndex) {
+        this.currentChainIndex++;
+        this.saveData(this.STORAGE_KEYS.currentChainIndex, this.currentChainIndex);
+        
+        if (this.currentChainIndex >= this.currentChain.length) {
+          // Chain completed
+          this.finalizeChain();
+        } else {
+          // Move to next double
+          this.updateCurrentDoubleDisplay();
+          this.renderChainUI();
+          this.saveSessionData();
+        }
+      } else {
+        // If not current double, just move focus to next input if it exists
+        const nextInput = document.querySelector(`.chain-input[data-index="${index + 1}"]`);
+        if (nextInput) {
+          nextInput.focus();
+          nextInput.select();
+        }
+      }
+    } else {
+      alert('Please enter a valid number of hits (0-15).');
+      input.focus();
+      input.select();
+    }
+  }
+
+  completeChain() {
+    if (!this.currentChain || this.currentChainIndex >= this.currentChain.length) {
+      this.finalizeChain();
+      return;
+    }
+    
+    const currentDouble = this.currentChain[this.currentChainIndex];
+    const input = document.querySelector(`.chain-input[data-double="${currentDouble}"]`);
+    
+    if (!input || !input.value) {
+      alert(`Please enter hits for D${currentDouble} before continuing.`);
+      if (input) {
+        input.focus();
+        input.select();
+      }
+      return;
+    }
+    
+    const hits = parseInt(input.value);
+    if (hits < 0 || hits > 15) {
+      alert('Please enter a valid number of hits (0-15).');
+      input.focus();
+      input.select();
+      return;
+    }
+    
+    // Record hits in session data
+    this.sessionData.hits[currentDouble] = hits;
+    this.sessionData.totalHits += hits;
+    
+    // Move to next double in chain
+    this.currentChainIndex++;
+    this.saveData(this.STORAGE_KEYS.currentChainIndex, this.currentChainIndex);
+    
+    if (this.currentChainIndex >= this.currentChain.length) {
+      this.finalizeChain();
+    } else {
+      this.updateCurrentDoubleDisplay();
+      this.renderChainUI();
+      this.saveSessionData();
+    }
+  }
+
+  finalizeChain() {
+    // Save session to history
+    let chainSessions = this.loadData(this.STORAGE_KEYS.chainSessions) || [];
+    chainSessions.push(this.sessionData);
+    this.saveData(this.STORAGE_KEYS.chainSessions, chainSessions);
+    
+    // Reset for new chain
+    this.selectRandomChain();
+    this.renderChainUI();
+    this.updateCurrentDoubleDisplay();
+    
+    // Focus on first double after UI is rendered
+    setTimeout(() => {
+      const firstInput = document.querySelector('.chain-input[data-index="0"]');
+      if (firstInput) {
+        firstInput.focus();
+        firstInput.select();
+      }
+    }, 150);
+    
+    alert('Chain completed! A new chain has been selected.');
+  }
+
+  highlightDouble(dbl) {
+    const el = document.getElementById(`double${dbl}`);
+    if (el) el.setAttribute('fill', '#ffd700');
+  }
+
+  clearHighlights() {
+    this.ALL_DOUBLES.forEach(dbl => {
+      const el = document.getElementById(`double${dbl}`);
+      if (el) {
+        if (dbl === 25) {
+          el.setAttribute('fill', '#dc3545');
+        } else {
+          el.setAttribute('fill', this.NUMBERS.indexOf(dbl) % 2 === 0 ? '#dc3545' : '#28a745');
+        }
+      }
+    });
+  }
+
+  updateStats() {
+    let totalHits = 0;
+    
+    for (const double in this.chainProgress) {
+      totalHits += parseInt(this.chainProgress[double]) || 0;
+    }
+    
+    this.elements.totals.textContent = `Total hits: ${totalHits}`;
+  }
+
+  saveSessionData() {
+    this.sessionData.chain = [...this.currentChain];
+    this.sessionData.hits = {...this.chainProgress};
+    
+    // Calculate total hits
+    this.sessionData.totalHits = 0;
+    for (const double in this.chainProgress) {
+      this.sessionData.totalHits += parseInt(this.chainProgress[double]) || 0;
+    }
+    
+    // Note: We're not saving session data to localStorage until chain is complete
+    // to avoid cluttering storage with incomplete sessions
+  }
+
+  exportStats() {
+    const sessions = this.loadData(this.STORAGE_KEYS.chainSessions) || [];
+    let exportText = 'Doubles Chains Practice Statistics\n==================================\n\n';
+    
+    sessions.forEach(sess => {
+      exportText += `Session: ${sess.sessionId} (${sess.date})\n`;
+      exportText += `Chain: ${sess.chain.map(d => `D${d}`).join(' → ')}\n`;
+      
+      sess.chain.forEach(dbl => {
+        const hits = sess.hits[dbl] || 0;
+        exportText += `D${dbl}: ${hits} hits\n`;
+      });
+      
+      exportText += `Total hits: ${sess.totalHits}\n\n`;
+    });
+    
+    const blob = new Blob([exportText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `doubles-chains-stats-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+}
+
+new DoublesChainApp();
+</script>
+
+</body>
+</html>
