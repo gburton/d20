@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halve-It Challenge</title>
+  <link href="board.css" rel="stylesheet">
+  <style>
+  .targets-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+  }
+
+  .target-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #dc3545;
+  }
+
+  .target-item.green {
+    border-left-color: #28a745;
+  }
+
+  .target-item.active {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+  }
+        
+  .target-value {
+    font-weight: bold;
+    font-size: 1.2rem;
+    min-width: 60px;
+  }
+
+  .hits-input {
+    width: 50px;
+    text-align: center;
+    padding: 5px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 1.1rem;
+  }
+
+  .score-display {
+    text-align: center;
+    margin: 20px 0;
+    padding: 15px;
+    background: #e9ecef;
+    border-radius: 10px;
+  }
+        
+  .current-score {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #1a2a6c;
+  }
+
+  .btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    margin: 5px;
+  }
+
+  .btn-primary {
+    background: #007bff;
+    color: white;
+  }
+        
+  .btn-primary:hover {
+    background: #0069d9;
+  }
+
+  .btn-success {
+    background: #28a745;
+    color: white;
+  }
+
+  .btn-success:hover {
+    background: #218838;
+  }
+
+  .btn-danger {
+    background: #dc3545;
+    color: white;
+  }
+
+  .btn-danger:hover {
+    background: #c82333;
+  }
+        
+  .control-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: center;
+  }
+
+  .round-info {
+    text-align: center;
+    margin: 15px 0;
+    font-size: 1.2rem;
+    color: #6c757d;
+  }
+
+  .history-panel {
+    margin-top: 20px;
+  }
+        
+  .history-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .history-target {
+    font-weight: bold;
+  }
+
+  .history-hits {
+    color: #28a745;
+  }
+
+  .history-miss {
+    color: #dc3545;
+  }
+
+  .history-score {
+    font-weight: bold;
+  }
+
+  .segment.highlighted {
+    fill: #ffd700 !important;
+  }
+
+  #double25.highlighted, #double25.highlighted + circle {
+    fill: #ffd700 !important;
+  }
+        
+  .current-double.single-black {
+    background: #000000 !important;
+    border: 1px solid #333;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  .current-double.single-white {
+    background: #ffffff !important;
+    border: 1px solid #ccc;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  .current-double.single-black .current-double-text {
+    color: #ffffff; /* white text on black */
+    text-shadow: none;
+  }
+
+  .current-double.single-white .current-double-text {
+    color: #000000; /* black text on white */
+    text-shadow: none;
+  }
+  </style>
+</head>
+<body>
+
+  <h1>Halve-It Challenge - <small>Hit 8 randomly selected targets - miss and your score is halved!</small></h1>
+
+
+  <div class="container">
+    <div class="panel">
+      <div class="round-info" id="roundInfo">Round 1 of 8</div>
+      
+      <div class="targets-panel" id="targetsContainer">
+          <!-- Targets will be generated here -->
+      </div>
+      
+      <div class="control-group">
+        <button class="btn btn-primary" id="newGameBtn">New Game</button>
+        <button class="btn btn-success" id="submitBtn">Submit Throws</button>
+        <button class="btn btn-danger" id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <div class="panel board-container">
+        <svg viewBox="-225 -225 450 450" id="dartboard"></svg>
+    </div>
+    
+    <div class="panel">
+      <div class="current-double" id="currentTargetDisplay">
+        <div class="current-double-text" id="currentTargetText">-</div>
+      </div>
+    
+      <div class="score-display">
+        <div>Current Score</div>
+        <div class="current-score" id="currentScore">0</div>
+      </div>
+      
+      <div class="history-panel">
+        <h3>Score History</h3>
+        <div id="historyContainer">
+          <div class="history-item">No throws yet</div>
+        </div>
+      </div>
+    
+    </div>
+  </div>
+  
+
+  <script>
+  class DartboardApp {
+    constructor() {
+      this.NUMBERS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+      this.ALL_TARGETS = this.generateAllTargets();
+      this.STORAGE_KEYS = { 
+        gameState: 'targetChallengeState', 
+        sessions: 'targetChallengeSessions' 
+      };
+
+      this.DIMS = { 
+        outerRadius: 200, 
+        doubleWidth: 20, 
+        trebleRadius: 120, 
+        trebleWidth: 20, 
+        bullOuter: 16, 
+        bullInner: 8 
+      };
+
+      this.state = this.loadData(this.STORAGE_KEYS.gameState) || {
+        currentScore: 0,
+        currentRound: 1,
+        targets: this.generateRandomTargets(8),
+        history: []
+      };
+
+      this.elements = {
+        svg: document.getElementById('dartboard'),
+        hits: document.getElementById('hits'),
+        submit: document.getElementById('submitBtn'),
+        results: document.getElementById('results'),
+        totals: document.getElementById('totals'),
+        newGame: document.getElementById('newGameBtn'),
+        reset: document.getElementById('resetBtn'),
+        currentScore: document.getElementById('currentScore'),
+        roundInfo: document.getElementById('roundInfo'),
+        targetsContainer: document.getElementById('targetsContainer'),
+        historyContainer: document.getElementById('historyContainer'),
+        currentTargetText: document.getElementById('currentTargetText'),
+        currentTargetDisplay: document.getElementById('currentTargetDisplay')
+      };
+
+      this.init();
+    }
+
+    generateAllTargets() {
+      const targets = [];
+      // Singles
+      for (let i = 1; i <= 20; i++) {
+        targets.push(`S${i}`);
+      }
+      // Doubles
+      for (let i = 1; i <= 20; i++) {
+        targets.push(`D${i}`);
+      }
+      // Triples
+      for (let i = 1; i <= 20; i++) {
+        targets.push(`T${i}`);
+      }
+      // Bull and 25
+      targets.push('25', 'BULL');
+      return targets;
+    }
+
+    generateRandomTargets(count) {
+      const targets = [];
+      const availableTargets = [...this.ALL_TARGETS];
+      
+      for (let i = 0; i < count; i++) {
+        if (availableTargets.length === 0) break;
+
+        const randomIndex = Math.floor(Math.random() * availableTargets.length);
+        const target = availableTargets.splice(randomIndex, 1)[0];
+
+        targets.push({
+          name: target,
+          value: this.calculateTargetValue(target),
+          hits: 0
+        });
+      }
+      
+      return targets;
+    }
+
+    calculateTargetValue(target) {
+      if (target === 'BULL') return 50;
+      if (target === '25') return 25;
+      
+      const type = target[0];
+      const number = parseInt(target.substring(1));
+      
+      switch (type) {
+        case 'D': return number * 2;
+        case 'T': return number * 3;
+        default: return number;
+      }
+    }
+
+    loadData(key) {
+      try { 
+        const data = localStorage.getItem(key); 
+        return data ? JSON.parse(data) : null;
+      } catch (e) { 
+        console.error(`Error loading ${key}:`, e);
+        return null; 
+      }
+    }
+
+    saveData(key, data) {
+      try { 
+        localStorage.setItem(key, JSON.stringify(data));
+      } catch(e) {
+        console.error(`Error saving ${key}:`, e);
+      }
+    }
+
+    init() {
+      this.bindEvents();
+      this.drawBoard();
+      this.renderTargets();
+      this.updateDisplay();
+      this.renderHistory();
+      this.highlightCurrentTarget();
+    }
+
+    bindEvents() {
+      this.elements.newGame.addEventListener('click', () => this.newGame());
+      this.elements.reset.addEventListener('click', () => this.resetGame());
+      this.elements.submit.addEventListener('click', () => this.submitThrows());
+    }
+
+    newGame() {
+      this.state = {
+        currentScore: 0,
+        currentRound: 1,
+        targets: this.generateRandomTargets(8),
+        history: []
+      };
+      this.saveData(this.STORAGE_KEYS.gameState, this.state);
+      this.renderTargets();
+      this.updateDisplay();
+      this.renderHistory();
+      this.clearHighlights();
+      this.highlightCurrentTarget();
+    }
+
+    resetGame() {
+      this.state.currentScore = 0;
+      this.state.currentRound = 1;
+      this.state.history = [];
+      
+      this.state.targets.forEach(target => {
+          target.hits = 0;
+      });
+      
+      this.saveData(this.STORAGE_KEYS.gameState, this.state);
+      this.renderTargets();
+      this.updateDisplay();
+      this.renderHistory();
+      this.clearHighlights();
+      this.highlightCurrentTarget();
+    }
+
+    submitThrows() {
+      const currentTargetIndex = this.state.currentRound - 1;
+      const inputEl = document.querySelector(`.hits-input[data-index="${currentTargetIndex}"]`);
+      
+      if (!inputEl) return;
+      
+      const hits = parseInt(inputEl.value) || 0;
+      
+      if (hits < 0 || hits > 3) {
+        alert('Please enter a number between 0 and 3');
+        inputEl.focus();
+        return;
+      }
+                
+      // Update target hits
+      this.state.targets[currentTargetIndex].hits = hits;
+
+      // Calculate score for this round
+      const target = this.state.targets[currentTargetIndex];
+      let roundScore = 0;
+
+      if (hits > 0) {
+        roundScore = hits * target.value;
+        this.state.currentScore += roundScore;
+      } else {
+        // Halve the score for missing
+        this.state.currentScore = Math.floor(this.state.currentScore / 2);
+      }
+                
+      // Add to history
+      this.state.history.push({
+        target: target.name,
+        hits: hits,
+        score: roundScore,
+        total: this.state.currentScore
+      });
+                
+      // Save game state
+      this.saveData(this.STORAGE_KEYS.gameState, this.state);
+      
+      // Update UI
+      this.updateDisplay();
+      this.renderHistory();
+      
+      // Move to next round or end game
+      if (this.state.currentRound < this.state.targets.length) {
+        this.state.currentRound++;
+        this.saveData(this.STORAGE_KEYS.gameState, this.state);
+        this.updateDisplay();
+        this.renderTargets();
+        this.highlightCurrentTarget();
+        
+        // Enable next input
+        const nextInput = document.querySelector(`.hits-input[data-index="${this.state.currentRound - 1}"]`);
+        if (nextInput) {
+          nextInput.disabled = false;
+          nextInput.focus();
+        }
+      } else {
+        // Game over - save session
+        this.saveSession();
+        
+        // Show final score
+        setTimeout(() => {
+          alert(`Game over! Your final score is ${this.state.currentScore}`);
+        }, 300);
+      }
+    }
+
+    saveSession() {
+      const session = {
+        date: new Date().toISOString(),
+        targets: this.state.targets,
+        finalScore: this.state.currentScore,
+        history: this.state.history
+      };
+
+      let sessions = this.loadData(this.STORAGE_KEYS.sessions) || [];
+      sessions.push(session);
+      this.saveData(this.STORAGE_KEYS.sessions, sessions);
+    }
+    
+    
+    
+    
+    getTargetColor(targetName) {
+  if (targetName === 'BULL') return 'bull';
+  if (targetName === '25') return 'twentyfive';
+
+  const number = parseInt(targetName.substring(1));
+  const type = targetName[0];
+
+  // Validate number is in dartboard layout
+  if (!this.NUMBERS.includes(number)) {
+    console.warn(`Invalid target number: ${number} from ${targetName}`);
+    return 'inactive';
+  }
+
+  // Singles are black or white based on dartboard layout
+  if (type === 'S') {
+    const blackSegments = [20, 18, 13, 10, 2, 3, 7, 8, 14, 12];
+    return blackSegments.includes(number) ? 'single-black' : 'single-white';
+  }
+
+  // Doubles/triples use red/green based on standard layout
+  const redSegments = [20, 18, 13, 10, 2, 3, 7, 8, 14, 12];
+  return redSegments.includes(number) ? 'red' : 'green';
+}
+
+
+
+
+
+
+updateDisplay() {
+  this.elements.currentScore.textContent = this.state.currentScore;
+  this.elements.roundInfo.textContent = `Round ${this.state.currentRound} of ${this.state.targets.length}`;
+
+  // Reset all color classes
+  const colorClasses = [
+    'red', 'green', 'bull', 'twentyfive',
+    'single-black', 'single-white', 'inactive'
+  ];
+  this.elements.currentTargetDisplay.classList.remove(...colorClasses);
+
+  if (this.state.currentRound <= this.state.targets.length) {
+    const currentTarget = this.state.targets[this.state.currentRound - 1];
+    this.elements.currentTargetText.textContent = currentTarget.name;
+
+    // Get and apply target color class
+    const color = this.getTargetColor(currentTarget.name);
+    if (color) {
+      this.elements.currentTargetDisplay.classList.add(color);
+    }
+  } else {
+    this.elements.currentTargetText.textContent = '-';
+    this.elements.currentTargetDisplay.classList.add('inactive');
+  }
+}
+
+
+
+    
+    
+    
+    
+    renderTargets() {
+      this.elements.targetsContainer.innerHTML = '';
+      
+      this.state.targets.forEach((target, index) => {
+        const targetEl = document.createElement('div');
+        targetEl.className = `target-item ${index % 2 ? 'green' : ''}`;
+        if (index === this.state.currentRound - 1) {
+          targetEl.classList.add('active');
+        }
+          
+        targetEl.innerHTML = `
+            <div class="target-value">${target.name}</div>
+            <input type="number" class="hits-input" min="0" max="3" 
+                   data-index="${index}" value="${target.hits || ''}" 
+                   placeholder="0" ${index >= this.state.currentRound ? 'disabled' : ''}>
+        `;
+                    
+        this.elements.targetsContainer.appendChild(targetEl);
+      });
+                
+      // Add event listeners to inputs
+      document.querySelectorAll('.hits-input').forEach(input => {
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') this.submitThrows();
+        });
+        input.addEventListener('input', e => {
+          const value = e.target.value;
+          if (value > 3) e.target.value = 3;
+          if (value < 0) e.target.value = 0;
+        });
+      });
+                
+      // Focus on current input
+      const currentInput = document.querySelector(`.hits-input[data-index="${this.state.currentRound - 1}"]`);
+      if (currentInput) {
+        currentInput.focus();
+      }
+    }
+
+    renderHistory() {
+      this.elements.historyContainer.innerHTML = '';
+      
+      if (this.state.history.length === 0) {
+        this.elements.historyContainer.innerHTML = '<div class="history-item">No throws yet</div>';
+        return;
+      }
+      
+      this.state.history.forEach((item, index) => {
+        const historyItemEl = document.createElement('div');
+        historyItemEl.className = 'history-item';
+        
+        historyItemEl.innerHTML = `
+            <span class="history-target">${item.target}</span>
+            <span class="${item.hits > 0 ? 'history-hits' : 'history-miss'}">
+                ${item.hits > 0 ? `${item.hits} hits (+${item.score})` : 'MISS (score halved)'}
+            </span>
+            <span class="history-score">${item.total}</span>
+        `;
+          
+        this.elements.historyContainer.appendChild(historyItemEl);
+      });
+      
+      // Scroll to bottom
+      this.elements.historyContainer.scrollTop = this.elements.historyContainer.scrollHeight;
+    }
+
+    polarToCartesian(cx, cy, r, angleDeg) {
+      const a = (angleDeg - 90) * Math.PI / 180;
+      return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+    }
+
+    createArcPath(cx, cy, rInner, rOuter, startAngle, endAngle) {
+      const so = this.polarToCartesian(cx, cy, rOuter, endAngle);
+      const eo = this.polarToCartesian(cx, cy, rOuter, startAngle);
+      const si = this.polarToCartesian(cx, cy, rInner, startAngle);
+      const ei = this.polarToCartesian(cx, cy, rInner, endAngle);
+      const la = endAngle - startAngle <= 180 ? 0 : 1;
+      return ['M', so.x, so.y, 'A', rOuter, rOuter, 0, la, 0, eo.x, eo.y, 'L', si.x, si.y, 'A', rInner, rInner, 0, la, 1, ei.x, ei.y, 'Z'].join(' ');
+    }
+
+    createElement(type, attrs = {}) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', type);
+      Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+      return el;
+    }
+
+    drawBoard() {
+      const svg = this.elements.svg;
+      const { NUMBERS, DIMS } = this;
+      const { outerRadius, doubleWidth, trebleRadius, trebleWidth, bullOuter, bullInner } = DIMS;
+      
+      svg.innerHTML = '';
+                
+      for (let i = 0; i < 20; i++) {
+        const startAngle = -9 + i * 18;
+        const endAngle = -9 + (i + 1) * 18;
+        const isEven = i % 2 === 0;
+        const singleColor = isEven ? '#000' : '#fff';
+        const specialColor = isEven ? '#dc3545' : '#28a745';
+        
+        // Double ring
+        svg.appendChild(this.createElement('path', {
+          d: this.createArcPath(0, 0, outerRadius - doubleWidth, outerRadius, startAngle, endAngle),
+          fill: specialColor,
+          id: `double${NUMBERS[i]}`,
+          class: 'segment'
+        }));
+        
+        // Triple ring
+        svg.appendChild(this.createElement('path', {
+          d: this.createArcPath(0, 0, trebleRadius - trebleWidth, trebleRadius, startAngle, endAngle),
+          fill: specialColor,
+          id: `triple${NUMBERS[i]}`,
+          class: 'segment'
+        }));
+                    
+        // Outer single area (between double and triple)
+        svg.appendChild(this.createElement('path', {
+          d: this.createArcPath(0, 0, trebleRadius, outerRadius - doubleWidth, startAngle, endAngle),
+          fill: singleColor,
+          id: `single${NUMBERS[i]}`,
+          class: 'segment'
+        }));
+                    
+        // Inner single area (between triple and bull)
+        svg.appendChild(this.createElement('path', {
+          d: this.createArcPath(0, 0, bullOuter, trebleRadius - trebleWidth, startAngle, endAngle),
+          fill: singleColor,
+          id: `innerSingle${NUMBERS[i]}`,
+          class: 'segment'
+        }));
+                    
+        // Number
+        const angleMid = (startAngle + endAngle) / 2;
+        const pos = this.polarToCartesian(0, 0, outerRadius + 15, angleMid);
+        const numberText = this.createElement('text', {
+          x: pos.x,
+          y: pos.y,
+          class: 'number'
+        });
+        numberText.textContent = NUMBERS[i];
+        svg.appendChild(numberText);
+      }
+                
+      // Bullseye
+      svg.appendChild(this.createElement('circle', {
+        r: bullOuter,
+        fill: '#28a745',
+        id: 'outerBull',
+        class: 'segment'
+      }));
+                
+      svg.appendChild(this.createElement('circle', {
+        r: bullInner,
+        fill: '#dc3545',
+        id: 'double25',
+        class: 'segment'
+      }));
+    }
+
+    highlightCurrentTarget() {
+      this.clearHighlights();
+      
+      if (this.state.currentRound > this.state.targets.length) return;
+      
+      const currentTarget = this.state.targets[this.state.currentRound - 1];
+      const targetName = currentTarget.name;
+      
+      // Update the current target display text
+      this.elements.currentTargetText.textContent = targetName;
+      
+      if (targetName === 'BULL') {
+        // Highlight bullseye
+        document.getElementById('double25').classList.add('highlighted');
+      } else if (targetName === '25') {
+        // Highlight 25 (outer bull)
+        document.getElementById('outerBull').classList.add('highlighted');
+      } else {
+        const type = targetName[0];
+        const number = parseInt(targetName.substring(1));
+        
+        // Find the index of the number in the NUMBERS array
+        const numberIndex = this.NUMBERS.indexOf(number);
+                
+        if (numberIndex !== -1) {
+          let elementId;
+          switch (type) {
+            case 'D':
+              elementId = `double${number}`;
+              break;
+            case 'T':
+              elementId = `triple${number}`;
+              break;
+            default:
+              // For singles, highlight both the outer and inner single areas
+              const outerSingle = document.getElementById(`single${number}`);
+              const innerSingle = document.getElementById(`innerSingle${number}`);
+              if (outerSingle) outerSingle.classList.add('highlighted');
+              if (innerSingle) innerSingle.classList.add('highlighted');
+              return; // Return early since we've handled both areas
+          }
+          
+          const element = document.getElementById(elementId);
+          if (element) {
+            element.classList.add('highlighted');
+          }
+        }
+      }
+    }
+
+    clearHighlights() {
+      document.querySelectorAll('.segment.highlighted, #double25.highlighted, #outerBull.highlighted').forEach(el => {
+        el.classList.remove('highlighted');
+      });
+    }
+  }
+
+  // Initialize the game when the page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    new DartboardApp();
+  });
+</script>
+</body>
+</html>
