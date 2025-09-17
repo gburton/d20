@@ -1,0 +1,289 @@
+<!-- © 2025 G Burton, https://github.com/gburton/d20 - Licensed CC BY-NC 4.0 https://creativecommons.org/licenses/by-nc/4.0/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bob's 27 Practice</title>
+<link href="board.css" rel="stylesheet">
+</head>
+<body>
+
+<h1>Bob's 27 Practice</h1>
+
+<div class="container">
+  <div class="panel">
+    <h3>Round History</h3>
+    <ul class="stats-list" id="history"></ul>
+    
+    <div class="current-score">
+      <div class="current-score-text" id="currentScoreText">Score: -</div>
+    </div>
+    
+    <br>
+    <button class="btn btn-secondary" id="newGame">Start New Game</button>
+  </div>
+
+  <div class="panel board-container">
+    <svg viewBox="-225 -225 450 450" id="dartboard"></svg>
+  </div>
+
+  <div class="panel">
+    <div class="current-double" id="display">
+      <div class="current-double-text" id="currentTargetText">-</div>
+    </div>
+    
+    <h3>Enter Hits</h3>
+    <div class="input-group vertical">
+      <label class="checkbox-label"><input type="checkbox" id="dart1"> Dart 1 Hit</label>
+      <label class="checkbox-label"><input type="checkbox" id="dart2"> Dart 2 Hit</label>
+      <label class="checkbox-label"><input type="checkbox" id="dart3"> Dart 3 Hit</label>
+      <button class="btn btn-primary" id="submitDarts">Submit Darts</button>
+    </div>
+    
+    <div class="totals" id="highScore">High Score: 0</div>
+  </div>
+</div>
+
+<script>
+class Bobs27App {
+  constructor() {
+    this.NUMBERS = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+    this.GAME_SEQUENCE = [...Array(20).keys()].map(i => i + 1).concat(25); // D1-D20, Bull
+    this.STORAGE_KEYS = { gameState: 'bobs27GameState', highScores: 'bobs27HighScores' };
+
+    this.DIMS = { outerRadius: 200, doubleWidth: 20, trebleRadius: 120, trebleWidth: 20, bullOuter: 16, bullInner: 8 };
+    
+    this.elements = {
+      svg: document.getElementById('dartboard'),
+      display: document.getElementById('display'),
+      targetText: document.getElementById('currentTargetText'),
+      scoreText: document.getElementById('currentScoreText'),
+      history: document.getElementById('history'),
+      highScore: document.getElementById('highScore'),
+      darts: [document.getElementById('dart1'), document.getElementById('dart2'), document.getElementById('dart3')],
+      submitBtn: document.getElementById('submitDarts'),
+      newGameBtn: document.getElementById('newGame'),
+    };
+    
+    this.gameState = this.loadData(this.STORAGE_KEYS.gameState) || this.createState();
+
+    this.init();
+  }
+
+  createState(score = 27, targetIndex = 0, history = [], isOver = false) {
+    return { score, targetIndex, history, isOver };
+  }
+
+  loadData(key) {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      console.error(`Error loading ${key}:`, e);
+      return null;
+    }
+  }
+
+  saveData(key, data) {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch(e) {
+      console.error(`Error saving ${key}:`, e);
+    }
+  }
+
+  init() {
+    this.bindEvents();
+    this.drawBoard();
+    this.updateUI();
+  }
+
+  bindEvents() {
+    this.elements.submitBtn.addEventListener('click', () => this.submitDarts());
+    this.elements.newGameBtn.addEventListener('click', () => this.startNewGame());
+    // Allow pressing Enter to submit
+    document.addEventListener('keydown', e => { 
+        if (e.key === 'Enter' && !this.gameState.isOver) {
+            this.submitDarts();
+            e.preventDefault();
+        }
+    });
+  }
+
+  polarToCartesian(cx,cy,r,angleDeg){ const a=(angleDeg-90)*Math.PI/180; return {x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)}; }
+  createArcPath(cx,cy,rInner,rOuter,startAngle,endAngle){ const so=this.polarToCartesian(cx,cy,rOuter,endAngle), eo=this.polarToCartesian(cx,cy,rOuter,startAngle); const si=this.polarToCartesian(cx,cy,rInner,startAngle), ei=this.polarToCartesian(cx,cy,rInner,endAngle); const la=endAngle-startAngle<=180?0:1; return ['M',so.x,so.y,'A',rOuter,rOuter,0,la,0,eo.x,eo.y,'L',si.x,si.y,'A',rInner,rInner,0,la,1,ei.x,ei.y,'Z'].join(' '); }
+  createElement(type,attrs={}){ const el=document.createElementNS('http://www.w3.org/2000/svg',type); Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v)); return el; }
+
+  drawBoard(){
+    const svg=this.elements.svg, {NUMBERS,DIMS}=this, {outerRadius,doubleWidth,trebleRadius,trebleWidth,bullOuter,bullInner}=DIMS;
+    svg.innerHTML='';
+    for(let i=0;i<20;i++){
+      const startAngle=-9+i*18,endAngle=-9+(i+1)*18,isEven=i%2===0;
+      const singleColor=isEven?'#000':'#fff',specialColor=isEven?'#dc3545':'#28a745';
+      svg.appendChild(this.createElement('path',{d:this.createArcPath(0,0,outerRadius-doubleWidth,outerRadius,startAngle,endAngle),fill:specialColor,id:`double${NUMBERS[i]}`,class:'segment'}));
+      svg.appendChild(this.createElement('path',{d:this.createArcPath(0,0,trebleRadius-trebleWidth,trebleRadius,startAngle,endAngle),fill:specialColor,class:'segment'}));
+      svg.appendChild(this.createElement('path',{d:this.createArcPath(0,0,trebleRadius,outerRadius-doubleWidth,startAngle,endAngle),fill:singleColor,class:'segment'}));
+      svg.appendChild(this.createElement('path',{d:this.createArcPath(0,0,bullOuter,trebleRadius-trebleWidth,startAngle,endAngle),fill:singleColor,class:'segment'}));
+      const angleMid=(startAngle+endAngle)/2,pos=this.polarToCartesian(0,0,outerRadius+15,angleMid), numberText=this.createElement('text',{x:pos.x,y:pos.y,class:'number'});
+      numberText.textContent=NUMBERS[i]; svg.appendChild(numberText);
+    }
+    svg.appendChild(this.createElement('circle',{r:bullOuter,fill:'#28a745'}));
+    svg.appendChild(this.createElement('circle',{r:bullInner,fill:'#dc3545',id:'double25'}));
+  }
+
+  highlightDouble(dbl){ const el=document.getElementById(`double${dbl}`); if(el) el.setAttribute('fill','#ffd700'); }
+  clearHighlights(){ this.GAME_SEQUENCE.forEach(dbl=>{ const el=document.getElementById(`double${dbl}`); if(el){ if(dbl===25) el.setAttribute('fill','#dc3545'); else el.setAttribute('fill',this.NUMBERS.indexOf(dbl)%2===0?'#dc3545':'#28a745'); } }); }
+
+  startNewGame() {
+    if (!this.gameState.isOver && this.gameState.history.length > 0) {
+        if (!confirm("Are you sure you want to abandon the current game?")) {
+            return;
+        }
+    }
+    this.gameState = this.createState();
+    this.saveData(this.STORAGE_KEYS.gameState, this.gameState);
+    this.updateUI();
+  }
+
+  submitDarts() {
+    if (this.gameState.isOver) return;
+
+    const hits = this.elements.darts.filter(checkbox => checkbox.checked).length;
+    const currentTarget = this.GAME_SEQUENCE[this.gameState.targetIndex];
+    const doubleValue = currentTarget === 25 ? 50 : currentTarget * 2;
+    
+    let scoreChange = 0;
+    if (hits === 0) {
+        scoreChange = -doubleValue;
+    } else {
+        scoreChange = hits * doubleValue;
+    }
+    
+    this.gameState.score += scoreChange;
+    this.gameState.history.push({ target: currentTarget, change: scoreChange });
+    this.gameState.targetIndex++;
+
+    this.checkGameOver();
+    this.saveData(this.STORAGE_KEYS.gameState, this.gameState);
+    this.updateUI();
+  }
+  
+  checkGameOver() {
+    // MODIFICATION: The rule for ending the game at score <= 0 has been removed.
+    // The game now only ends when all doubles have been attempted.
+    if (this.gameState.targetIndex >= this.GAME_SEQUENCE.length) {
+        this.gameState.isOver = true;
+        setTimeout(() => alert(`Round Complete! Final Score: ${this.gameState.score}`), 100);
+    }
+
+    if (this.gameState.isOver) {
+        this.updateHighScores(this.gameState.score);
+    }
+  }
+
+  updateHighScores(finalScore) {
+    const highScores = this.loadData(this.STORAGE_KEYS.highScores) || [];
+    highScores.push({ score: finalScore, date: new Date().toISOString() });
+    // Keep only top 10 scores
+    highScores.sort((a, b) => b.score - a.score);
+    this.saveData(this.STORAGE_KEYS.highScores, highScores.slice(0, 10));
+  }
+  
+  updateUI() {
+    this.clearHighlights();
+    this.elements.darts.forEach(cb => cb.checked = false);
+    
+    // Update High Score Display
+    const highScores = this.loadData(this.STORAGE_KEYS.highScores) || [];
+    const topScore = highScores.length > 0 ? highScores[0].score : 0;
+    this.elements.highScore.textContent = `High Score: ${topScore}`;
+    
+    // Update Round History
+    this.elements.history.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    this.gameState.history.forEach(item => {
+        const li = document.createElement('li');
+        const changeText = item.change > 0 ? `+${item.change}` : `${item.change}`;
+        const changeClass = item.change > 0 ? 'score-plus' : 'score-minus';
+        
+        li.style.padding = '8px 12px';
+        li.style.display = 'flex';
+        li.style.justifyContent = 'space-between';
+        li.style.alignItems = 'center';
+        
+        li.innerHTML = `D${item.target}: <span class="${changeClass}">${changeText}</span>`;
+        
+        fragment.appendChild(li);
+    });
+    this.elements.history.appendChild(fragment);
+
+    if (this.gameState.isOver) {
+        this.elements.targetText.textContent = '-';
+        this.elements.scoreText.textContent = `Final Score: ${this.gameState.score}`;
+        this.elements.submitBtn.disabled = true;
+        this.elements.darts.forEach(cb => cb.disabled = true);
+    } else {
+        const currentTarget = this.GAME_SEQUENCE[this.gameState.targetIndex];
+        this.elements.targetText.textContent = `D${currentTarget}`;
+        this.elements.scoreText.textContent = `Score: ${this.gameState.score}`;
+        this.highlightDouble(currentTarget);
+        this.elements.submitBtn.disabled = false;
+        this.elements.darts.forEach(cb => cb.disabled = false);
+    }
+  }
+}
+
+new Bobs27App();
+</script>
+
+<style>
+/* Add some basic styles for the new elements */
+.input-group.vertical {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+.checkbox-label {
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+.checkbox-label input {
+    width: 18px;
+    height: 18px;
+    margin-right: 10px;
+}
+.current-score-text {
+    font-size: 1.5rem;
+    margin-top: 10px;
+    color: #6c757d;
+}
+.stats-list .score-plus {
+    color: #28a745; /* green */
+    font-weight: bold;
+}
+.stats-list .score-minus {
+    color: #dc3545; /* red */
+    font-weight: bold;
+}
+.vertical button {
+    margin-top: 15px;
+    width: 100%;
+}
+.current-score {
+    margin-top: 25px;
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    text-align: center;
+}
+.current-score-text {
+    font-weight: 700;
+    color: #495057;
+    margin: 0;
+}
+</style>
+
+</body>
+</html>
