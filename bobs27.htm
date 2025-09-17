@@ -34,14 +34,12 @@
     </div>
     
     <h3>Enter Hits</h3>
-    <div class="input-group vertical">
-      <label class="checkbox-label"><input type="checkbox" id="dart1"> Dart 1 Hit</label>
-      <label class="checkbox-label"><input type="checkbox" id="dart2"> Dart 2 Hit</label>
-      <label class="checkbox-label"><input type="checkbox" id="dart3"> Dart 3 Hit</label>
-      <button class="btn btn-primary" id="submitDarts">Submit Hits</button>
+    <div class="input-group">
+      <input type="number" id="hitsInput" min="0" max="3" placeholder="0-3">
+      <button class="btn btn-primary" id="submitDarts">Submit Round</button>
     </div>
     
-    <div class="totals" id="highScore">Highest Score: 0</div>
+    <div class="totals" id="highScore">Your Record: 0</div>
   </div>
 </div>
 
@@ -61,7 +59,7 @@ class Bobs27App {
       scoreText: document.getElementById('currentScoreText'),
       history: document.getElementById('history'),
       highScore: document.getElementById('highScore'),
-      darts: [document.getElementById('dart1'), document.getElementById('dart2'), document.getElementById('dart3')],
+      hitsInput: document.getElementById('hitsInput'),
       submitBtn: document.getElementById('submitDarts'),
       newGameBtn: document.getElementById('newGame'),
       hitPercentageText: document.getElementById('hitPercentageText'),
@@ -98,17 +96,23 @@ class Bobs27App {
     this.bindEvents();
     this.drawBoard();
     this.updateUI();
+    this.elements.hitsInput.focus();
   }
 
   bindEvents() {
     this.elements.submitBtn.addEventListener('click', () => this.submitDarts());
     this.elements.newGameBtn.addEventListener('click', () => this.startNewGame());
-    // Allow pressing Enter to submit
-    document.addEventListener('keydown', e => { 
-        if (e.key === 'Enter' && !this.gameState.isOver) {
-            this.submitDarts();
-            e.preventDefault();
-        }
+    this.elements.hitsInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !this.gameState.isOver) {
+        this.submitDarts();
+        e.preventDefault();
+      }
+    });
+    // Ensure input stays within bounds
+    this.elements.hitsInput.addEventListener('change', () => {
+      let value = parseInt(this.elements.hitsInput.value);
+      if (isNaN(value) || value < 0) this.elements.hitsInput.value = 0;
+      if (value > 3) this.elements.hitsInput.value = 3;
     });
   }
 
@@ -145,29 +149,37 @@ class Bobs27App {
     this.gameState = this.createState();
     this.saveData(this.STORAGE_KEYS.gameState, this.gameState);
     this.updateUI();
+    this.elements.hitsInput.focus();
   }
 
   submitDarts() {
     if (this.gameState.isOver) return;
 
-    const hits = this.elements.darts.filter(checkbox => checkbox.checked).length;
+    const hits = parseInt(this.elements.hitsInput.value) || 0;
+    // Ensure hits is between 0 and 3
+    const validatedHits = Math.min(Math.max(hits, 0), 3);
+    
     const currentTarget = this.GAME_SEQUENCE[this.gameState.targetIndex];
     const doubleValue = currentTarget === 25 ? 50 : currentTarget * 2;
     
     let scoreChange = 0;
-    if (hits === 0) {
+    if (validatedHits === 0) {
         scoreChange = -doubleValue;
     } else {
-        scoreChange = hits * doubleValue;
+        scoreChange = validatedHits * doubleValue;
     }
     
     // Update hit tracking
-    this.gameState.totalHits += hits;
+    this.gameState.totalHits += validatedHits;
     this.gameState.totalAttempts += 3;
     
     this.gameState.score += scoreChange;
     this.gameState.history.push({ target: currentTarget, change: scoreChange });
     this.gameState.targetIndex++;
+
+    // Reset input to 0
+    this.elements.hitsInput.value = '';
+    this.elements.hitsInput.focus();
 
     this.checkGameOver();
     this.saveData(this.STORAGE_KEYS.gameState, this.gameState);
@@ -197,12 +209,11 @@ class Bobs27App {
   
   updateUI() {
     this.clearHighlights();
-    this.elements.darts.forEach(cb => cb.checked = false);
     
     // Update High Score Display
     const highScores = this.loadData(this.STORAGE_KEYS.highScores) || [];
     const topScore = highScores.length > 0 ? highScores[0].score : 0;
-    this.elements.highScore.textContent = `Highest Score: ${topScore}`;
+    this.elements.highScore.textContent = `Your Record: ${topScore}`;
     
     // Calculate and display hit percentage
     const hitPercentage = this.gameState.totalAttempts > 0 
@@ -233,14 +244,14 @@ class Bobs27App {
         this.elements.targetText.textContent = '-';
         this.elements.scoreText.textContent = `Final Score: ${this.gameState.score}`;
         this.elements.submitBtn.disabled = true;
-        this.elements.darts.forEach(cb => cb.disabled = true);
+        this.elements.hitsInput.disabled = true;
     } else {
         const currentTarget = this.GAME_SEQUENCE[this.gameState.targetIndex];
         this.elements.targetText.textContent = `D${currentTarget}`;
         this.elements.scoreText.textContent = `Score: ${this.gameState.score}`;
         this.highlightDouble(currentTarget);
         this.elements.submitBtn.disabled = false;
-        this.elements.darts.forEach(cb => cb.disabled = false);
+        this.elements.hitsInput.disabled = false;
     }
   }
 }
@@ -255,16 +266,17 @@ new Bobs27App();
     align-items: flex-start;
     gap: 10px;
 }
-.checkbox-label {
-    font-size: 1.2rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
+.input-group.vertical label {
+    font-weight: bold;
+    margin-bottom: 5px;
 }
-.checkbox-label input {
-    width: 18px;
-    height: 18px;
-    margin-right: 10px;
+.input-group.vertical input {
+    width: 100%;
+    padding: 10px;
+    font-size: 1.2rem;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
 }
 .current-score-text {
     font-size: 1.5rem;
