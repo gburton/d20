@@ -17,6 +17,7 @@
     
     <div class="current-score">
       <div class="current-score-text" id="currentScoreText">Score: -</div>
+      <div class="hit-percentage" id="hitPercentageText">Hit Rate: 0.00%</div>
     </div>
     
     <br>
@@ -37,10 +38,10 @@
       <label class="checkbox-label"><input type="checkbox" id="dart1"> Dart 1 Hit</label>
       <label class="checkbox-label"><input type="checkbox" id="dart2"> Dart 2 Hit</label>
       <label class="checkbox-label"><input type="checkbox" id="dart3"> Dart 3 Hit</label>
-      <button class="btn btn-primary" id="submitDarts">Submit Darts</button>
+      <button class="btn btn-primary" id="submitDarts">Submit Hits</button>
     </div>
     
-    <div class="totals" id="highScore">High Score: 0</div>
+    <div class="totals" id="highScore">Highest Score: 0</div>
   </div>
 </div>
 
@@ -63,6 +64,7 @@ class Bobs27App {
       darts: [document.getElementById('dart1'), document.getElementById('dart2'), document.getElementById('dart3')],
       submitBtn: document.getElementById('submitDarts'),
       newGameBtn: document.getElementById('newGame'),
+      hitPercentageText: document.getElementById('hitPercentageText'),
     };
     
     this.gameState = this.loadData(this.STORAGE_KEYS.gameState) || this.createState();
@@ -70,8 +72,8 @@ class Bobs27App {
     this.init();
   }
 
-  createState(score = 27, targetIndex = 0, history = [], isOver = false) {
-    return { score, targetIndex, history, isOver };
+  createState(score = 27, targetIndex = 0, history = [], isOver = false, totalHits = 0, totalAttempts = 0) {
+    return { score, targetIndex, history, isOver, totalHits, totalAttempts };
   }
 
   loadData(key) {
@@ -159,6 +161,10 @@ class Bobs27App {
         scoreChange = hits * doubleValue;
     }
     
+    // Update hit tracking
+    this.gameState.totalHits += hits;
+    this.gameState.totalAttempts += 3;
+    
     this.gameState.score += scoreChange;
     this.gameState.history.push({ target: currentTarget, change: scoreChange });
     this.gameState.targetIndex++;
@@ -196,7 +202,13 @@ class Bobs27App {
     // Update High Score Display
     const highScores = this.loadData(this.STORAGE_KEYS.highScores) || [];
     const topScore = highScores.length > 0 ? highScores[0].score : 0;
-    this.elements.highScore.textContent = `High Score: ${topScore}`;
+    this.elements.highScore.textContent = `Highest Score: ${topScore}`;
+    
+    // Calculate and display hit percentage
+    const hitPercentage = this.gameState.totalAttempts > 0 
+        ? (this.gameState.totalHits / this.gameState.totalAttempts * 100).toFixed(2)
+        : "0.00";
+    this.elements.hitPercentageText.textContent = `Hit Rate: ${hitPercentage}%`;
     
     // Update Round History
     this.elements.history.innerHTML = '';
