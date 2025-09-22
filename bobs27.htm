@@ -21,7 +21,10 @@
     </div>
     
     <br>
-    <button class="btn btn-secondary" id="newGame">Start New Game</button>
+    <div style="display: flex; justify-content: space-between;">
+      <button class="btn btn-primary" id="newGame">Start New Game</button>
+      <a class="btn btn-secondary" href="bobs27report.htm">View Your Progress</a>
+    </div>
   </div>
 
   <div class="panel board-container">
@@ -174,7 +177,12 @@ class Bobs27App {
     this.gameState.totalAttempts += 3;
     
     this.gameState.score += scoreChange;
-    this.gameState.history.push({ target: currentTarget, change: scoreChange });
+    this.gameState.history.push({
+      target: currentTarget,
+      change: scoreChange,
+      hits: validatedHits   
+    });
+
     this.gameState.targetIndex++;
 
     // Reset input to 0
@@ -201,10 +209,13 @@ class Bobs27App {
 
   updateHighScores(finalScore) {
     const highScores = this.loadData(this.STORAGE_KEYS.highScores) || [];
-    highScores.push({ score: finalScore, date: new Date().toISOString() });
-    // Keep only top 10 scores
-    highScores.sort((a, b) => b.score - a.score);
-    this.saveData(this.STORAGE_KEYS.highScores, highScores.slice(0, 10));
+    highScores.push({ 
+        score: finalScore, 
+        date: new Date().toISOString(),
+        history: this.gameState.history.slice(),
+        totalHits: this.gameState.totalHits
+    });
+    this.saveData(this.STORAGE_KEYS.highScores, highScores); // save all games
   }
   
   updateUI() {
