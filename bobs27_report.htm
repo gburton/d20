@@ -119,13 +119,14 @@ class ProgressReport {
   renderStatsOverview() {
     const totalSessions = this.sessions.length;
     const totalHits = this.sessions.reduce((sum, s) => sum + s.totalHits, 0);
-    const overallAverage = totalSessions ? (totalHits / totalSessions).toFixed(2) : 0;
+    const allGames = JSON.parse(localStorage.getItem('bobs27HighScores') || '[]');
+    const recordHighScore = allGames.length > 0 ? Math.max(...allGames.map(g => g.score)) : 0;
     const practiceDays = new Set(this.sessions.map(s => s.date.split('T')[0])).size;
 
     this.statsOverviewEl.innerHTML = `
       <div class="stat-card"><div class="stat-value">${totalSessions}</div><div class="stat-label">Sessions</div></div>
       <div class="stat-card"><div class="stat-value">${totalHits}</div><div class="stat-label">Total Hits</div></div>
-      <div class="stat-card"><div class="stat-value">${overallAverage}</div><div class="stat-label">Avg Hits/Session</div></div>
+      <div class="stat-card"><div class="stat-value">${recordHighScore}</div><div class="stat-label">Record High Score</div></div>
       <div class="stat-card"><div class="stat-value">${practiceDays}</div><div class="stat-label">Days Practiced</div></div>
     `;
   }
@@ -297,7 +298,7 @@ renderHeatmapChart(limitDays=30){
       toggle.addEventListener('click',()=>this.renderHeatmapChart(Object.keys(sessionsByDate).length));
       container.appendChild(toggle);
     }
-}
+  }
 
 
   formatDate(dateString){
