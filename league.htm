@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>League Manager</title>
+  <style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  body {
+    background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+    color: #333;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+  }
+
+  header {
+    background: linear-gradient(to right, #2c3e50, #4a6491);
+    color: white;
+    padding: 25px;
+    text-align: center;
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+  }
+
+  .content {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 20px;
+    gap: 20px;
+  }
+
+  .panel {
+    flex: 1;
+    min-width: 300px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .full-width-panel {
+    width: 100%;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-top: 0;
+  }
+
+  h2 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eaeaea;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+  }
+
+  input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+  }
+
+  button {
+    background: linear-gradient(to right, #3498db, #2980b9);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+    width: 100%;
+  }
+
+  button:hover {
+    background: linear-gradient(to right, #2980b9, #1c5a85);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  button:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .player-list {
+    list-style-type: none;
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .player-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: #e9ecef;
+    margin-bottom: 5px;
+    border-radius: 5px;
+  }
+
+  .remove-player {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+    line-height: 1;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+  }
+
+  .matches-container {
+    margin-top: 20px;
+    overflow-y: auto;
+  }
+
+  .match {
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  .match.completed {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+  }
+
+  .match-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    font-weight: bold;
+    color: #2c3e50;
+  }
+
+  .game-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end; /* aligns inputs and button baseline */
+  }
+
+  .player-score {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .player-score input {
+    height: 38px; /* same height as button */
+    font-size: 1rem;
+    padding: 0 10px;
+    box-sizing: border-box;
+  }
+
+  .save-match {
+    flex: 1;
+    height: 38px; /* same height as inputs */
+    font-size: 1rem;
+    padding: 0;
+  }
+
+
+
+
+
+  .player-score label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+  }
+
+  .score-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  .league-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+
+  .league-table th {
+    background-color: #2c3e50;
+    color: white;
+    padding: 12px;
+    text-align: left;
+  }
+
+  .league-table td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .league-table tr:nth-child(even) {
+    background-color: #f2f2f2;
+  }
+
+  .league-table tr:hover {
+    background-color: #e9ecef;
+  }
+
+  .league-table th:nth-child(n+3),
+  .league-table td:nth-child(n+3) {
+    text-align: center;
+  }
+
+  .league-table th:first-child,
+  .league-table td:first-child {
+    text-align: center;
+    width: 60px;
+  }
+
+  .league-table th:nth-child(2),
+  .league-table td:nth-child(2) {
+    text-align: left;
+  }
+
+  .status {
+    text-align: center;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-weight: bold;
+  }
+
+  .status.info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+  }
+
+  .status.success {
+    background-color: #d4edda;
+    color: #155724;
+  }
+
+  .status.warning {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+
+  .reset-btn {
+    background: linear-gradient(to right, #e74c3c, #c0392b);
+    margin-top: 5px;
+  }
+
+  .reset-btn:hover {
+    background: linear-gradient(to right, #c0392b, #a53125);
+  }
+
+  @media (max-width: 768px) {
+    .content {
+      flex-direction: column;
+    }
+
+    .panel {
+      min-width: 100%;
+    }
+
+    .game-inputs {
+      flex-direction: column;
+      gap: 10px;
+    }
+  }
+
+  .league-leader {
+    background-color: gold;
+    font-weight: bold;
+  }
+
+  .league-last {
+    background-color: #ff9999;
+    font-weight: bold;
+  }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>League Manager</h1>
+    </header>
+
+    <div class="content">
+      <div class="panel">
+        <h2>Tournament Setup</h2>
+
+        <div class="form-group">
+          <label for="playerName">Player Name:</label>
+          <input type="text" id="playerName" placeholder="Enter player name">
+        </div>
+
+        <button id="addPlayer">Add Player</button>
+
+        <div class="status info" id="playerStatus">No players added yet. Add up to 8 players.</div>
+
+        <h3>Players (<span id="playerCount">0</span>/8)</h3>
+        <ul class="player-list" id="playerList"></ul>
+
+        <button id="startTournament" disabled>Start Tournament</button>
+        <button id="resetTournament" class="reset-btn">Reset Tournament</button>
+      </div>
+
+      <div class="panel">
+          <h2>Schedule</h2>
+          <div class="matches-container" id="matchesContainer"></div>
+      </div>
+    </div>
+
+    <div class="full-width-panel">
+      <h2>League Table</h2>
+      <table class="league-table" id="leagueTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Player</th>
+            <th>Played</th>
+            <th>Won</th>
+            <th>Lost</th>
+            <th>Legs For</th>
+            <th>Legs Against</th>
+            <th>Points</th>
+          </tr>
+        </thead>
+        <tbody id="leagueTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+  // --- Global Variables ---
+  let players = [];
+  let matches = [];
+  let tournamentStarted = false;
+
+  // --- DOM Elements ---
+  const playerNameInput = document.getElementById('playerName');
+  const addPlayerButton = document.getElementById('addPlayer');
+  const playerList = document.getElementById('playerList');
+  const playerCount = document.getElementById('playerCount');
+  const playerStatus = document.getElementById('playerStatus');
+  const startTournamentButton = document.getElementById('startTournament');
+  const matchesContainer = document.getElementById('matchesContainer');
+  const leagueTableBody = document.getElementById('leagueTableBody');
+  const resetTournamentButton = document.getElementById('resetTournament');
+
+  // --- Event Listeners ---
+  addPlayerButton.addEventListener('click', addPlayer);
+  startTournamentButton.addEventListener('click', startTournament);
+  resetTournamentButton.addEventListener('click', resetTournament);
+
+  // --- LocalStorage Functions ---
+  function saveTournamentState() {
+    localStorage.setItem('dartsTournament', JSON.stringify({ players, matches, tournamentStarted }));
+  }
+
+  function loadTournamentState() {
+    const saved = localStorage.getItem('dartsTournament');
+    if (saved) {
+      const state = JSON.parse(saved);
+      players = state.players || [];
+      matches = state.matches || [];
+      tournamentStarted = state.tournamentStarted || false;
+      updatePlayerList();
+      if (tournamentStarted) {
+        playerNameInput.disabled = true;
+        addPlayerButton.disabled = true;
+        startTournamentButton.disabled = true;
+        displayMatches();
+        updateLeagueTable();
+        playerStatus.textContent = `Tournament resumed with ${players.length} players`;
+        playerStatus.className = 'status success';
+      } else if (players.length > 0) {
+        playerStatus.textContent = `${players.length} player(s) loaded. Add up to ${8 - players.length} more.`;
+        startTournamentButton.disabled = players.length < 2;
+      }
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', loadTournamentState);
+
+  // --- Player Functions ---
+  function addPlayer() {
+    const name = playerNameInput.value.trim();
+    if (!name) { alert('Please enter a player name'); return; }
+    if (players.length >= 8) { alert('Maximum of 8 players allowed'); return; }
+    if (players.some(p => p.name === name)) { alert('Player name already exists'); return; }
+
+    players.push({
+      id: Date.now(),
+      name,
+      matchesPlayed: 0,
+      matchesWon: 0,
+      matchesLost: 0,
+      gamesWon: 0,
+      gamesLost: 0,
+      points: 0
+    });
+
+    playerNameInput.value = '';
+    updatePlayerList();
+    startTournamentButton.disabled = players.length < 2;
+    saveTournamentState();
+  }
+
+  function updatePlayerList() {
+    playerList.innerHTML = '';
+    playerCount.textContent = players.length;
+    players.forEach(p => {
+      const li = document.createElement('li');
+      li.className = 'player-item';
+      li.innerHTML = `${p.name} <button class="remove-player" data-id="${p.id}">×</button>`;
+      playerList.appendChild(li);
+    });
+
+    document.querySelectorAll('.remove-player').forEach(btn => {
+      btn.addEventListener('click', e => {
+        if (tournamentStarted) { alert('Cannot remove players after tournament has started'); return; }
+        players = players.filter(p => p.id != e.target.dataset.id);
+        updatePlayerList();
+        startTournamentButton.disabled = players.length < 2;
+        saveTournamentState();
+      });
+    });
+  }
+
+  // --- Tournament Functions ---
+  function startTournament() {
+    if (players.length < 2) { alert('Need at least 2 players to start'); return; }
+    tournamentStarted = true;
+    playerNameInput.disabled = true;
+    addPlayerButton.disabled = true;
+    startTournamentButton.disabled = true;
+    generateRoundRobinMatches();
+    displayMatches();
+    updateLeagueTable();
+    playerStatus.textContent = `Tournament started with ${players.length} players.`;
+    playerStatus.className = 'status success';
+    saveTournamentState();
+  }
+
+  // --- Round-Robin Scheduler (Circle Method) ---
+  function generateRoundRobinMatches() {
+    matches = [];
+    const n = players.length;
+    let tempPlayers = [...players];
+    let dummy = null;
+
+    // Add dummy if odd number of players
+    if (n % 2 === 1) {
+      dummy = { id: -1, name: 'BYE' };
+      tempPlayers.push(dummy);
+    }
+
+    const rounds = tempPlayers.length - 1;
+    const half = tempPlayers.length / 2;
+
+    for (let round = 0; round < rounds; round++) {
+      for (let i = 0; i < half; i++) {
+        const p1 = tempPlayers[i];
+        const p2 = tempPlayers[tempPlayers.length - 1 - i];
+        if (p1.id !== -1 && p2.id !== -1) { // skip BYE
+          matches.push({
+            id: matches.length + 1,
+            player1Id: p1.id,
+            player2Id: p2.id,
+            player1Games: null,
+            player2Games: null,
+            completed: false
+          });
+        }
+      }
+      // Rotate players except the first
+      tempPlayers = [tempPlayers[0]].concat([tempPlayers[tempPlayers.length - 1]].concat(tempPlayers.slice(1, tempPlayers.length - 1)));
+    }
+  }
+
+  // --- Display Matches ---
+  function displayMatches() {
+    matchesContainer.innerHTML = '';
+    matches.forEach(m => {
+      const p1 = players.find(p => p.id === m.player1Id);
+      const p2 = players.find(p => p.id === m.player2Id);
+
+      const div = document.createElement('div');
+      div.className = 'match' + (m.completed ? ' completed' : '');
+      div.innerHTML = `
+<div class="match-header">
+  <span>Match ${m.id}: ${p1.name} vs ${p2.name}</span>
+  <span>${m.completed ? 'Completed' : 'Pending'}</span>
+</div>
+<div class="game-inputs">
+  <div class="player-score">
+    <label>${p1.name} Games Won:</label>
+    <input type="number" min="0" max="3" class="score-input" data-match="${m.id}" data-player="1" value="${m.player1Games!==null?m.player1Games:''}" ${m.completed?'disabled':''}>
+  </div>
+  <div class="player-score">
+    <label>${p2.name} Games Won:</label>
+    <input type="number" min="0" max="3" class="score-input" data-match="${m.id}" data-player="2" value="${m.player2Games!==null?m.player2Games:''}" ${m.completed?'disabled':''}>
+  </div>
+  <button class="save-match" data-match="${m.id}" ${m.completed?'disabled':''}>${m.completed?'Completed':'Save Result'}</button>
+</div>
+`;
+
+
+      matchesContainer.appendChild(div);
+    });
+
+    document.querySelectorAll('.save-match').forEach(btn=>{
+      btn.addEventListener('click', e => saveMatchResult(e.target.dataset.match));
+    });
+
+    document.querySelectorAll('.score-input').forEach(input=>{
+      input.addEventListener('change', e=>{
+        if(e.target.value<0) e.target.value=0;
+        if(e.target.value>3) e.target.value=3;
+      });
+    });
+  }
+
+  // --- Save Match Result ---
+  function saveMatchResult(matchId){
+    const m = matches.find(x => x.id == matchId);
+    if(!m) return;
+
+    const p1Input = document.querySelector(`.score-input[data-match="${matchId}"][data-player="1"]`);
+    const p2Input = document.querySelector(`.score-input[data-match="${matchId}"][data-player="2"]`);
+    const g1 = parseInt(p1Input.value);
+    const g2 = parseInt(p2Input.value);
+
+    if(isNaN(g1) || isNaN(g2)) { alert('Enter valid numbers'); return; }
+    if(g1 + g2 !== 3) { alert('Total games must equal 3'); return; }
+
+    const p1 = players.find(p => p.id === m.player1Id);
+    const p2 = players.find(p => p.id === m.player2Id);
+
+    m.player1Games = g1; m.player2Games = g2; m.completed = true;
+    p1.matchesPlayed++; p2.matchesPlayed++;
+    if(g1 > g2){ p1.matchesWon++; p2.matchesLost++; } else { p2.matchesWon++; p1.matchesLost++; }
+    p1.gamesWon += g1; p1.gamesLost += g2; p2.gamesWon += g2; p2.gamesLost += g1;
+    p1.points += g1; p2.points += g2;
+
+    displayMatches();
+    updateLeagueTable();
+    saveTournamentState();
+
+    if(matches.every(m => m.completed)){
+      playerStatus.textContent = 'Tournament completed!';
+      playerStatus.className = 'status success';
+    }
+  }
+
+  // --- Update League Table ---
+  function updateLeagueTable() {
+    leagueTableBody.innerHTML = '';
+    const sorted = [...players].sort((a,b)=>b.points-a.points);
+    sorted.forEach((p,i)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td>${p.name}</td>
+        <td>${p.matchesPlayed}</td>
+        <td>${p.matchesWon}</td>
+        <td>${p.matchesLost}</td>
+        <td>${p.gamesWon}</td>
+        <td>${p.gamesLost}</td>
+        <td><strong>${p.points}</strong></td>
+      `;
+
+      // Highlight 1st and last place
+      if(i === 0) tr.classList.add('league-leader');
+      if(i === sorted.length - 1) tr.classList.add('league-last');
+
+      leagueTableBody.appendChild(tr);
+    });
+  }
+
+  // --- Reset Tournament ---
+  function resetTournament() {
+    if(!confirm('Reset tournament? All progress will be lost.')) return;
+    players=[]; matches=[]; tournamentStarted=false;
+    playerNameInput.disabled=false; addPlayerButton.disabled=false; startTournamentButton.disabled=true;
+    playerStatus.textContent='Tournament reset. Add players to start new tournament.';
+    playerStatus.className='status info';
+    updatePlayerList(); matchesContainer.innerHTML=''; leagueTableBody.innerHTML='';
+    localStorage.removeItem('dartsTournament');
+  }
+</script>
+
+</body>
+</html>
