@@ -347,9 +347,9 @@
 
         <button id="addPlayer">Add Player</button>
 
-        <div class="status info" id="playerStatus">No players added yet. Add up to 8 players.</div>
+        <div class="status info" id="playerStatus">No players added yet. Add up to 12 players.</div>
 
-        <h3>Players (<span id="playerCount">0</span>/8)</h3>
+        <h3>Players (<span id="playerCount">0</span>/12)</h3>
         <ul class="player-list" id="playerList"></ul>
 
         <button id="startTournament" disabled>Start Tournament</button>
@@ -426,7 +426,7 @@
         playerStatus.textContent = `Tournament resumed with ${players.length} players`;
         playerStatus.className = 'status success';
       } else if (players.length > 0) {
-        playerStatus.textContent = `${players.length} player(s) loaded. Add up to ${8 - players.length} more.`;
+        playerStatus.textContent = `${players.length} player(s) loaded. Add up to ${12 - players.length} more.`;
         startTournamentButton.disabled = players.length < 2;
       }
     }
@@ -438,7 +438,7 @@
   function addPlayer() {
     const name = playerNameInput.value.trim();
     if (!name) { alert('Please enter a player name'); return; }
-    if (players.length >= 8) { alert('Maximum of 8 players allowed'); return; }
+    if (players.length >= 12) { alert('Maximum of 12 players allowed'); return; }
     if (players.some(p => p.name === name)) { alert('Player name already exists'); return; }
 
     players.push({
@@ -455,6 +455,11 @@
     playerNameInput.value = '';
     updatePlayerList();
     startTournamentButton.disabled = players.length < 2;
+
+    // --- NEW: Update status ---
+    playerStatus.textContent = `${players.length} player(s) loaded. Add up to ${12 - players.length} more.`;
+    playerStatus.className = 'status info';
+
     saveTournamentState();
   }
 
