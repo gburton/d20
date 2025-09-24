@@ -152,6 +152,7 @@
   .matches-container {
     margin-top: 20px;
     overflow-y: auto;
+    max-height: 500px;
   }
 
   .match {
@@ -374,9 +375,35 @@
 <body>
   <div class="container">
     <header>
-      <h1>League Manager</h1>
+      <h1>Round Robin Tournament</h1>
     </header>
 
+    <div class="content">
+      <div class="panel">
+        <h2>League Table</h2>
+        <table class="league-table" id="leagueTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Player</th>
+              <th>P</th>
+              <th>W</th>
+              <th>L</th>
+              <th>LF</th>
+              <th>LA</th>
+              <th>Points</th>
+            </tr>
+          </thead>
+          <tbody id="leagueTableBody"></tbody>
+        </table>
+      </div>      
+
+      <div class="panel">
+        <h2>Schedule</h2>
+        <div class="matches-container" id="matchesContainer"></div>
+      </div>
+    </div>
+    
     <div class="content">
       <div class="panel">
         <h2>Tournament Setup</h2>
@@ -396,36 +423,9 @@
         <button id="startTournament" disabled>Start Tournament</button>
         <button id="resetTournament" class="reset-btn">Reset Tournament</button>
         <button id="saveHistory" class="save-history-btn">Save Tournament to History</button>
-        
         <div id="historyStatus" class="history-status"></div>
       </div>
 
-      <div class="panel">
-        <h2>Schedule</h2>
-        <div class="matches-container" id="matchesContainer"></div>
-      </div>
-    </div>
-    
-    <div class="content">
-      <div class="panel">
-        <h2>League Table</h2>
-        <table class="league-table" id="leagueTable">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Player</th>
-              <th>P</th>
-              <th>W</th>
-              <th>L</th>
-              <th>LF</th>
-              <th>LA</th>
-              <th>Points</th>
-            </tr>
-          </thead>
-          <tbody id="leagueTableBody"></tbody>
-        </table>
-      </div>
-      
       <div class="panel">
         <div id="historyListContainer" style="display: none;">
           <h2>Saved Tournaments</h2>
