@@ -62,15 +62,6 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
 
-  .full-width-panel {
-    width: 100%;
-    padding: 20px;
-    background-color: #f8f9fa;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    margin-top: 0;
-  }
-
   h2 {
     color: #2c3e50;
     margin-bottom: 15px;
@@ -211,10 +202,6 @@
     padding: 0;
   }
 
-
-
-
-
   .player-score label {
     display: block;
     margin-bottom: 5px;
@@ -328,6 +315,60 @@
     background-color: #ff9999;
     font-weight: bold;
   }
+  
+  .save-history-btn {
+    background: linear-gradient(to right, #27ae60, #219653);
+    margin-top: 10px;
+    display: none; /* Hidden by default */
+  }
+  
+  .save-history-btn:hover {
+    background: linear-gradient(to right, #219653, #1e8449);
+  }
+  
+  .history-status {
+    margin-top: 10px;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  /* Style for history list */
+  .history-list {
+    margin-top: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #f9f9f9;
+  }
+    
+  .history-item {
+    padding: 8px;
+    margin-bottom: 5px;
+    background-color: white;
+    border-radius: 3px;
+    border-left: 4px solid #3498db;
+  }
+  
+  .history-item:hover {
+    background-color: #f0f0f0;
+  }
+  
+  .history-item a {
+    color: #2c3e50;
+    text-decoration: none;
+    display: block;
+  }
+    
+  .history-winner {
+    font-weight: bold;
+    color: #27ae60;
+  }
+  
+  .no-history {
+    text-align: center;
+    color: #7f8c8d;
+    font-style: italic;
+    padding: 10px;
+  }
   </style>
 </head>
 <body>
@@ -354,31 +395,43 @@
 
         <button id="startTournament" disabled>Start Tournament</button>
         <button id="resetTournament" class="reset-btn">Reset Tournament</button>
+        <button id="saveHistory" class="save-history-btn">Save Tournament to History</button>
+        
+        <div id="historyStatus" class="history-status"></div>
       </div>
 
       <div class="panel">
-          <h2>Schedule</h2>
-          <div class="matches-container" id="matchesContainer"></div>
+        <h2>Schedule</h2>
+        <div class="matches-container" id="matchesContainer"></div>
       </div>
     </div>
-
-    <div class="full-width-panel">
-      <h2>League Table</h2>
-      <table class="league-table" id="leagueTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Player</th>
-            <th>Played</th>
-            <th>Won</th>
-            <th>Lost</th>
-            <th>Legs For</th>
-            <th>Legs Against</th>
-            <th>Points</th>
-          </tr>
-        </thead>
-        <tbody id="leagueTableBody"></tbody>
-      </table>
+    
+    <div class="content">
+      <div class="panel">
+        <h2>League Table</h2>
+        <table class="league-table" id="leagueTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Player</th>
+              <th>P</th>
+              <th>W</th>
+              <th>L</th>
+              <th>LF</th>
+              <th>LA</th>
+              <th>Points</th>
+            </tr>
+          </thead>
+          <tbody id="leagueTableBody"></tbody>
+        </table>
+      </div>
+      
+      <div class="panel">
+        <div id="historyListContainer" style="display: none;">
+          <h2>Saved Tournaments</h2>
+          <div class="history-list" id="historyList"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -387,6 +440,8 @@
   let players = [];
   let matches = [];
   let tournamentStarted = false;
+  let tournamentCompleted = false;
+  let currentTournamentId = null;
 
   // --- DOM Elements ---
   const playerNameInput = document.getElementById('playerName');
@@ -398,15 +453,123 @@
   const matchesContainer = document.getElementById('matchesContainer');
   const leagueTableBody = document.getElementById('leagueTableBody');
   const resetTournamentButton = document.getElementById('resetTournament');
+  const saveHistoryButton = document.getElementById('saveHistory');
+  const historyStatus = document.getElementById('historyStatus');
+  const historyListContainer = document.getElementById('historyListContainer');
+  const historyList = document.getElementById('historyList');
 
   // --- Event Listeners ---
   addPlayerButton.addEventListener('click', addPlayer);
   startTournamentButton.addEventListener('click', startTournament);
   resetTournamentButton.addEventListener('click', resetTournament);
+  saveHistoryButton.addEventListener('click', saveTournamentHistory);
+
+  // --- URL Parameter Functions ---
+  function getUrlParameter(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+  }
+
+  function updateUrlParameter(name, value) {
+    const url = new URL(window.location);
+    if (value) {
+      url.searchParams.set(name, value);
+    } else {
+      url.searchParams.delete(name);
+    }
+    window.history.replaceState({}, '', url);
+  }
+
+  // --- Check for tournament ID in URL on page load ---
+  function checkForTournamentInUrl() {
+    const tournamentId = getUrlParameter('tournament');
+    if (tournamentId) {
+      loadTournamentFromHistory(tournamentId);
+    } else {
+      loadTournamentState();
+    }
+    displayHistoryList(); // Always show history list
+  }
+
+  // --- Display History List ---
+  function displayHistoryList() {
+    const history = JSON.parse(localStorage.getItem('dartsTournamentHistory') || '[]');
+    
+    if (history.length === 0) {
+      historyList.innerHTML = '<div class="no-history">No saved tournaments yet</div>';
+      historyListContainer.style.display = 'block';
+      return;
+    }
+    
+    // Sort by date (newest first)
+    history.sort((a, b) => b.id - a.id);
+    
+    historyList.innerHTML = '';
+    history.forEach(tournament => {
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.innerHTML = `
+        <a href="?tournament=${tournament.id}">
+          <strong>${tournament.date}</strong><br>
+          Winner: <span class="history-winner">${tournament.winner}</span> | 
+          Players: ${tournament.players.length}
+        </a>
+      `;
+      historyList.appendChild(item);
+    });
+    
+    historyListContainer.style.display = 'block';
+  }
+
+  // --- Load Tournament from History ---
+  function loadTournamentFromHistory(tournamentId) {
+    const history = JSON.parse(localStorage.getItem('dartsTournamentHistory') || '[]');
+    const tournament = history.find(t => t.id == tournamentId);
+    
+    if (tournament) {
+      // Set the tournament data
+      players = tournament.players;
+      matches = tournament.matches;
+      tournamentStarted = true;
+      tournamentCompleted = true;
+      currentTournamentId = tournamentId;
+      
+      // Update UI
+      playerNameInput.disabled = true;
+      addPlayerButton.disabled = true;
+      startTournamentButton.disabled = true;
+      displayMatches();
+      updateLeagueTable();
+      
+      // Show status
+      playerStatus.textContent = `Viewing completed tournament from ${tournament.date}`;
+      playerStatus.className = 'status info';
+      
+      // Hide save button since this is a completed tournament from history
+      saveHistoryButton.style.display = 'none';
+      historyStatus.textContent = `Viewing historical tournament (Winner: ${tournament.winner})`;
+      historyStatus.className = 'status info';
+      
+      // Don't save this as the current tournament state
+    } else {
+      // Tournament not found in history
+      playerStatus.textContent = `Tournament with ID ${tournamentId} not found in history. Starting fresh.`;
+      playerStatus.className = 'status warning';
+      loadTournamentState();
+    }
+  }
 
   // --- LocalStorage Functions ---
   function saveTournamentState() {
-    localStorage.setItem('dartsTournament', JSON.stringify({ players, matches, tournamentStarted }));
+    // Only save if this is not a historical tournament view
+    if (!currentTournamentId) {
+      localStorage.setItem('dartsTournament', JSON.stringify({ 
+        players, 
+        matches, 
+        tournamentStarted,
+        tournamentCompleted 
+      }));
+    }
   }
 
   function loadTournamentState() {
@@ -416,7 +579,9 @@
       players = state.players || [];
       matches = state.matches || [];
       tournamentStarted = state.tournamentStarted || false;
+      tournamentCompleted = state.tournamentCompleted || false;
       updatePlayerList();
+      
       if (tournamentStarted) {
         playerNameInput.disabled = true;
         addPlayerButton.disabled = true;
@@ -425,6 +590,11 @@
         updateLeagueTable();
         playerStatus.textContent = `Tournament resumed with ${players.length} players`;
         playerStatus.className = 'status success';
+        
+        // Check if tournament is completed
+        if (tournamentCompleted) {
+          showSaveHistoryButton();
+        }
       } else if (players.length > 0) {
         playerStatus.textContent = `${players.length} player(s) loaded. Add up to ${12 - players.length} more.`;
         startTournamentButton.disabled = players.length < 2;
@@ -432,7 +602,7 @@
     }
   }
 
-  window.addEventListener('DOMContentLoaded', loadTournamentState);
+  window.addEventListener('DOMContentLoaded', checkForTournamentInUrl);
 
   // --- Player Functions ---
   function addPlayer() {
@@ -456,7 +626,6 @@
     updatePlayerList();
     startTournamentButton.disabled = players.length < 2;
 
-    // --- NEW: Update status ---
     playerStatus.textContent = `${players.length} player(s) loaded. Add up to ${12 - players.length} more.`;
     playerStatus.className = 'status info';
 
@@ -488,6 +657,9 @@
   function startTournament() {
     if (players.length < 2) { alert('Need at least 2 players to start'); return; }
     tournamentStarted = true;
+    tournamentCompleted = false;
+    currentTournamentId = null; // Reset when starting new tournament
+    updateUrlParameter('tournament', null); // Clear URL parameter
     playerNameInput.disabled = true;
     addPlayerButton.disabled = true;
     startTournamentButton.disabled = true;
@@ -562,7 +734,6 @@
 </div>
 `;
 
-
       matchesContainer.appendChild(div);
     });
 
@@ -605,9 +776,54 @@
     saveTournamentState();
 
     if(matches.every(m => m.completed)){
+      tournamentCompleted = true;
       playerStatus.textContent = 'Tournament completed!';
       playerStatus.className = 'status success';
+      showSaveHistoryButton();
+      saveTournamentState();
     }
+  }
+
+  // --- Show Save History Button ---
+  function showSaveHistoryButton() {
+    saveHistoryButton.style.display = 'block';
+    historyStatus.textContent = 'Tournament completed! You can save it to history.';
+    historyStatus.className = 'status success';
+  }
+
+  // --- Save Tournament History ---
+  function saveTournamentHistory() {
+    // Get existing history or create empty array
+    const existingHistory = JSON.parse(localStorage.getItem('dartsTournamentHistory') || '[]');
+    
+    // Create a timestamp for this tournament
+    const tournamentData = {
+      id: Date.now(),
+      date: new Date().toLocaleString(),
+      players: JSON.parse(JSON.stringify(players)), // Deep copy
+      matches: JSON.parse(JSON.stringify(matches)), // Deep copy
+      winner: players.length > 0 ? [...players].sort((a,b) => b.points - a.points)[0].name : 'N/A'
+    };
+    
+    // Add to history
+    existingHistory.push(tournamentData);
+    
+    // Save back to localStorage
+    localStorage.setItem('dartsTournamentHistory', JSON.stringify(existingHistory));
+    
+    // Update URL with the tournament ID
+    updateUrlParameter('tournament', tournamentData.id);
+    currentTournamentId = tournamentData.id;
+    
+    // Show confirmation
+    historyStatus.textContent = `Tournament saved to history! (${tournamentData.date})`;
+    historyStatus.className = 'status success';
+    
+    // Hide the save button after saving
+    saveHistoryButton.style.display = 'none';
+    
+    // Refresh the history list
+    displayHistoryList();
   }
 
   // --- Update League Table ---
@@ -638,11 +854,15 @@
   // --- Reset Tournament ---
   function resetTournament() {
     if(!confirm('Reset tournament? All progress will be lost.')) return;
-    players=[]; matches=[]; tournamentStarted=false;
+    players=[]; matches=[]; tournamentStarted=false; tournamentCompleted=false;
+    currentTournamentId = null;
+    updateUrlParameter('tournament', null);
     playerNameInput.disabled=false; addPlayerButton.disabled=false; startTournamentButton.disabled=true;
     playerStatus.textContent='Tournament reset. Add players to start new tournament.';
     playerStatus.className='status info';
     updatePlayerList(); matchesContainer.innerHTML=''; leagueTableBody.innerHTML='';
+    saveHistoryButton.style.display = 'none';
+    historyStatus.textContent = '';
     localStorage.removeItem('dartsTournament');
   }
 </script>
