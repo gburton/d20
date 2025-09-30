@@ -135,6 +135,7 @@ class ProgressReport {
     const ctx = document.getElementById('doublesChart').getContext('2d');
     const doubles = Object.keys(this.stats).sort((a,b)=>a-b);
     const averages = doubles.map(d => this.stats[d].average);
+    const totals = doubles.map(d => this.stats[d].totalHits);
 
     const backgroundColors = doubles.map(d => {
       if(d==25) return '#dc3545';
@@ -144,8 +145,8 @@ class ProgressReport {
 
     new Chart(ctx, {
       type: 'bar',
-      data: { labels: doubles.map(d=>`D${d}`), datasets:[{ data: averages, backgroundColor: backgroundColors, borderColor: backgroundColors, borderWidth:1, borderRadius:8, borderSkipped:false }] },
-      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, max: Math.ceil(Math.max(...averages)), ticks: { precision: 0 }}, x:{grid:{display:false}}} }
+      data: { labels: doubles.map(d=>`D${d}`), datasets:[{ data: totals, backgroundColor: backgroundColors, borderColor: backgroundColors, borderWidth:1, borderRadius:8, borderSkipped:false }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, max: Math.ceil(Math.max(...totals)+1), ticks: { precision: 0 }}, x:{grid:{display:false}}} }
     });
   }
 
