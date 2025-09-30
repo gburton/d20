@@ -171,137 +171,172 @@ class ProgressReport {
     });
   }
 
-renderHeatmapChart(limitDays=30){
-    const container = document.getElementById('heatmapContainer');
-    container.innerHTML = '';
+renderHeatmapChart(limitDays = 30) {
+  const container = document.getElementById('heatmapContainer');
+  container.innerHTML = '';
 
-    // Group sessions by date
-    const sessionsByDate = {};
-    this.sessions.forEach(s => {
-        const date = s.date.split('T')[0];
-        if(!sessionsByDate[date]) sessionsByDate[date] = [];
-        sessionsByDate[date].push(s);
-    });
+  // Group sessions by date
+  const sessionsByDate = {};
+  this.sessions.forEach(s => {
+    const date = s.date.split('T')[0];
+    if (!sessionsByDate[date]) sessionsByDate[date] = [];
+    sessionsByDate[date].push(s);
+  });
 
-    // Sort dates descending (latest first)
-    let allDates = Object.keys(sessionsByDate).sort((a,b)=>new Date(b) - new Date(a));
+  // Sort dates descending (latest first)
+  let allDates = Object.keys(sessionsByDate).sort((a, b) => new Date(b) - new Date(a));
 
-    // Limit to last N days
-    const trimmed = allDates.length > limitDays;
-    allDates = trimmed ? allDates.slice(0, limitDays) : allDates;
+  // Limit to last N days
+  const trimmed = allDates.length > limitDays;
+  allDates = trimmed ? allDates.slice(0, limitDays) : allDates;
 
-    const doubles = Object.keys(this.stats).sort((a,b)=>a-b);
+  const doubles = Object.keys(this.stats).map(Number).sort((a, b) => a - b);
 
-    // Create table
-    const table = document.createElement('table');
-    table.className = 'heatmap-table';
+  // Create table
+  const table = document.createElement('table');
+  table.className = 'heatmap-table';
 
-    const headerRow = document.createElement('tr');
-    headerRow.innerHTML = `<th></th>${doubles.map(d=>`<th>D${d}</th>`).join('')}`;
-    table.appendChild(headerRow);
+  // Add "Score" header at the END
+  const headerRow = document.createElement('tr');
+  headerRow.innerHTML = `<th>Date</th>${doubles.map(d => `<th>D${d}</th>`).join('')}<th>Score</th>`;
+  table.appendChild(headerRow);
 
-    // Calculate max hits for color intensity
-    const dateDoubleContainers = {};
-    for(const date of allDates){
-        for(const dbl of doubles){
-            dateDoubleContainers[`${date}-${dbl}`] = { sessions: [], totalHits: 0 };
-        }
-    }
-
-    // Fill containers
-    allDates.forEach(date => {
-        // Sort sessions per day descending
-        const sessions = sessionsByDate[date].slice().sort((a,b)=>new Date(b.date) - new Date(a.date));
-        sessions.forEach(session => {
-            session.history.forEach(item => {
-                const dbl = item.target;
-                const key = `${date}-${dbl}`;
-                if(dateDoubleContainers[key]){
-                    dateDoubleContainers[key].sessions.push({...session, hits:item.hits, double:dbl});
-                    dateDoubleContainers[key].totalHits += item.hits;
-                }
-            });
-        });
-    });
-
-    const maxHits = Math.max(1, ...Object.values(dateDoubleContainers).map(c=>c.totalHits));
-
-    // Render rows
-    allDates.forEach(date => {
-        const row = document.createElement('tr');
-        const dateHeader = document.createElement('td');
-        dateHeader.className = 'date-column';
-        dateHeader.textContent = this.formatDate(date);
-        row.appendChild(dateHeader);
-
-        doubles.forEach(d => {
-            const cell = document.createElement('td');
-            const key = `${date}-${d}`;
-            const containerData = dateDoubleContainers[key];
-
-            if(containerData && containerData.sessions.length > 0){
-                const sessionContainer = document.createElement('div');
-                sessionContainer.style.display = 'flex';
-                sessionContainer.style.flexDirection = 'column';
-                sessionContainer.style.gap = '2px';
-
-                containerData.sessions.forEach(session => {
-                    const sessionElement = document.createElement('div');
-                    sessionElement.style.color='white';
-                    sessionElement.style.textShadow='1px 1px 2px rgba(0,0,0,0.7)';
-                    sessionElement.style.padding='4px';
-                    sessionElement.style.textAlign='center';
-                    sessionElement.style.borderRadius='3px';
-                    sessionElement.style.fontWeight='bold';
-
-                    if(session.hits===0){
-                        sessionElement.style.backgroundColor='rgba(255,150,150,0.7)';
-                        sessionElement.textContent='0';
-                    }else{
-                        const intensity = Math.min(session.hits/maxHits,1);
-                        sessionElement.style.backgroundColor=`rgba(102,126,234,${0.2+0.8*intensity})`;
-                        sessionElement.textContent=session.hits;
-                    }
-
-                    sessionContainer.appendChild(sessionElement);
-                });
-
-                cell.appendChild(sessionContainer);
-            } else {
-                cell.textContent='-';
-                cell.style.backgroundColor='#f9f9f9';
-            }
-
-            row.appendChild(cell);
-        });
-
-        table.appendChild(row);
-    });
-
-    container.appendChild(table);
-
-    // Legend and toggle
-    const legend=document.createElement('div');
-    legend.className='heatmap-legend';
-    legend.innerHTML=`
-      <span class="legend-label">Fewer</span>
-      <span class="legend-color" style="background-color: rgba(102,126,234,0.3)"></span>
-      <span class="legend-color" style="background-color: rgba(102,126,234,0.6)"></span>
-      <span class="legend-color" style="background-color: rgba(102,126,234,0.9)"></span>
-      <span class="legend-label">More</span>
-    `;
-    container.appendChild(legend);
-
-    if(trimmed){
-      const toggle=document.createElement('button');
-      toggle.className='btn btn-secondary heatmap-toggle';
-      toggle.textContent='Show All';
-      toggle.addEventListener('click',()=>this.renderHeatmapChart(Object.keys(sessionsByDate).length));
-      container.appendChild(toggle);
+  // Calculate max hits for color intensity
+  const dateDoubleContainers = {};
+  for (const date of allDates) {
+    for (const dbl of doubles) {
+      dateDoubleContainers[`${date}-${dbl}`] = { sessions: [], totalHits: 0 };
     }
   }
 
+  // Fill containers
+  allDates.forEach(date => {
+    const sessions = sessionsByDate[date].slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    sessions.forEach(session => {
+      session.history.forEach(item => {
+        const dbl = item.target;
+        const key = `${date}-${dbl}`;
+        if (dateDoubleContainers[key]) {
+          dateDoubleContainers[key].sessions.push({ ...session, hits: item.hits, double: dbl });
+          dateDoubleContainers[key].totalHits += item.hits;
+        }
+      });
+    });
+  });
 
+  const maxHits = Math.max(1, ...Object.values(dateDoubleContainers).map(c => c.totalHits));
+
+  // Render rows
+  allDates.forEach(date => {
+    const row = document.createElement('tr');
+
+    // Date cell
+    const dateHeader = document.createElement('td');
+    dateHeader.className = 'date-column';
+    dateHeader.textContent = this.formatDate(date);
+    row.appendChild(dateHeader);
+
+    // Double cells
+    doubles.forEach(d => {
+      const cell = document.createElement('td');
+      const key = `${date}-${d}`;
+      const containerData = dateDoubleContainers[key];
+
+      if (containerData && containerData.sessions.length > 0) {
+        const sessionContainer = document.createElement('div');
+        sessionContainer.style.display = 'flex';
+        sessionContainer.style.flexDirection = 'column';
+        sessionContainer.style.gap = '2px';
+
+        containerData.sessions.forEach(session => {
+          const sessionElement = document.createElement('div');
+          sessionElement.style.color = 'white';
+          sessionElement.style.textShadow = '1px 1px 2px rgba(0,0,0,0.7)';
+          sessionElement.style.padding = '4px';
+          sessionElement.style.textAlign = 'center';
+          sessionElement.style.borderRadius = '3px';
+          sessionElement.style.fontWeight = 'bold';
+
+          if (session.hits === 0) {
+            sessionElement.style.backgroundColor = 'rgba(255,150,150,0.7)';
+            sessionElement.textContent = '0';
+          } else {
+            const intensity = Math.min(session.hits / maxHits, 1);
+            sessionElement.style.backgroundColor = `rgba(102,126,234,${0.2 + 0.8 * intensity})`;
+            sessionElement.textContent = session.hits;
+          }
+
+          sessionContainer.appendChild(sessionElement);
+        });
+
+        cell.appendChild(sessionContainer);
+      } else {
+        cell.textContent = '-';
+        cell.style.backgroundColor = '#f9f9f9';
+      }
+
+      row.appendChild(cell);
+    });
+
+    // Score cell at END (per session)
+    const scoreCell = document.createElement('td');
+    const scoreContainer = document.createElement('div');
+    scoreContainer.style.display = 'flex';
+    scoreContainer.style.flexDirection = 'column';
+    scoreContainer.style.gap = '2px';
+
+    const sessions = sessionsByDate[date].slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    sessions.forEach(session => {
+      const scoreElement = document.createElement('div');
+      const val = session.score || 0;
+      scoreElement.textContent = val;
+      scoreElement.style.fontWeight = 'bold';
+      scoreElement.style.textAlign = 'center';
+      scoreElement.style.color = 'white';
+      scoreElement.style.borderRadius = '3px';
+      scoreElement.style.padding = '4px';
+
+      if (val < 0) {
+        scoreElement.style.backgroundColor = 'rgba(220,53,69,0.8)'; // red
+      } else if (val > 0) {
+        scoreElement.style.backgroundColor = 'rgba(40,167,69,0.8)'; // green
+      } else {
+        scoreElement.style.backgroundColor = '#6c757d'; // gray for 0
+      }
+
+      scoreContainer.appendChild(scoreElement);
+    });
+
+    scoreCell.appendChild(scoreContainer);
+    row.appendChild(scoreCell);
+
+    table.appendChild(row);
+  });
+
+  container.appendChild(table);
+
+  // Legend and toggle
+  const legend = document.createElement('div');
+  legend.className = 'heatmap-legend';
+  legend.innerHTML = `
+    <span class="legend-label">Fewer</span>
+    <span class="legend-color" style="background-color: rgba(102,126,234,0.3)"></span>
+    <span class="legend-color" style="background-color: rgba(102,126,234,0.6)"></span>
+    <span class="legend-color" style="background-color: rgba(102,126,234,0.9)"></span>
+    <span class="legend-label">More</span>
+  `;
+  container.appendChild(legend);
+
+  if (trimmed) {
+    const toggle = document.createElement('button');
+    toggle.className = 'btn btn-secondary heatmap-toggle';
+    toggle.textContent = 'Show All';
+    toggle.addEventListener('click', () => this.renderHeatmapChart(Object.keys(sessionsByDate).length));
+    container.appendChild(toggle);
+  }
+}
+
+  
   formatDate(dateString){
     const date=new Date(dateString);
     return date.toLocaleDateString('en-US',{month:'short',day:'numeric'});
