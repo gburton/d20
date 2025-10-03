@@ -465,7 +465,7 @@
               <th>LA</th>
               <th>100+</th>
               <th>180s</th>
-              <th>CO100+</th>
+              <th>CO</th>
               <th>Avg</th>
               <th>Points</th>
             </tr>
@@ -683,7 +683,7 @@
       points: 0,
       scores100: 0,
       scores180: 0,
-      checkouts100: 0,
+      highestCheckout: 0,
       average: 0
     });
 
@@ -795,7 +795,7 @@
             <div class="player-extra-stats">
               <div><label>100+:</label><input type="number" class="extra-input" data-match="${m.id}" data-player="1" data-field="scores100" value="${m.p1_scores100 ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
               <div><label>180s:</label><input type="number" class="extra-input" data-match="${m.id}" data-player="1" data-field="scores180" value="${m.p1_scores180 ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
-              <div><label>CO100+:</label><input type="number" class="extra-input" data-match="${m.id}" data-player="1" data-field="checkouts100" value="${m.p1_checkouts100 ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
+              <div><label>Highest CO:</label><input type="number" class="extra-input" data-match="${m.id}" data-player="1" data-field="highestCheckout" value="${m.p1_highestCheckout ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
               <div><label>Avg:</label><input type="number" step="0.01" class="extra-input" data-match="${m.id}" data-player="1" data-field="average" value="${m.p1_average ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
             </div>
           </div>
@@ -805,7 +805,7 @@
             <div class="player-extra-stats">
               <div><label>100+:</label><input type="number" class="extra-input" data-match="${m.id}" data-player="2" data-field="scores100" value="${m.p2_scores100 ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
               <div><label>180s:</label><input type="number" class="extra-input" data-match="${m.id}" data-player="2" data-field="scores180" value="${m.p2_scores180 ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
-              <div><label>CO100+:</label><input type="number" class="extra-input" data-match="${m.id}" data-player="2" data-field="checkouts100" value="${m.p2_checkouts100 ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
+              <div><label>Highest CO:</label><input type="number" class="extra-input" data-match="${m.id}" data-player="2" data-field="highestCheckout" value="${m.p2_highestCheckout ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
               <div><label>Avg:</label><input type="number" step="0.01" class="extra-input" data-match="${m.id}" data-player="2" data-field="average" value="${m.p2_average ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
             </div>
           </div>
@@ -850,13 +850,21 @@
     document.querySelectorAll(`.extra-input[data-match="${matchId}"][data-player="1"]`).forEach(input => {
       const field = input.dataset.field;
       const value = parseFloat(input.value) || 0;
-      p1[field] += value;
+      if (field === "highestCheckout") {
+        p1.highestCheckout = Math.max(p1.highestCheckout, value);
+      } else {
+        p1[field] += value;
+      }
       m[`p1_${field}`] = value;
     });
     document.querySelectorAll(`.extra-input[data-match="${matchId}"][data-player="2"]`).forEach(input => {
       const field = input.dataset.field;
       const value = parseFloat(input.value) || 0;
-      p2[field] += value;
+      if (field === "highestCheckout") {
+        p2.highestCheckout = Math.max(p2.highestCheckout, value);
+      } else {
+        p2[field] += value;
+      }
       m[`p2_${field}`] = value;
     });
 
@@ -894,7 +902,7 @@
       <td>${p.gamesLost}</td>
       <td>${p.scores100}</td>
       <td>${p.scores180}</td>
-      <td>${p.checkouts100}</td>
+      <td>${p.highestCheckout}</td>
       <td>${avg.toFixed(2)}</td>
       <td>${p.points}</td>`;
       leagueTableBody.appendChild(tr);
