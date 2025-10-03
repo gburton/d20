@@ -877,7 +877,35 @@
 
   function updateLeagueTable() {
     leagueTableBody.innerHTML = '';
-    const sorted = [...players].sort((a,b) => b.points - a.points);
+    
+    const sorted = [...players].sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+
+      // compare averages
+      const totalAvgA = matches.filter(m => m.completed && (m.player1Id === a.id || m.player2Id === a.id))
+        .reduce((sum, m) => {
+          if (m.player1Id === a.id) return sum + (m.p1_average || 0);
+          if (m.player2Id === a.id) return sum + (m.p2_average || 0);
+          return sum;
+        }, 0);
+      const gamesWithAvgA = matches.filter(m => m.completed && ((m.player1Id === a.id && m.p1_average != null) || (m.player2Id === a.id && m.p2_average != null))).length;
+      const avgA = gamesWithAvgA > 0 ? totalAvgA / gamesWithAvgA : 0;
+
+      const totalAvgB = matches.filter(m => m.completed && (m.player1Id === b.id || m.player2Id === b.id))
+        .reduce((sum, m) => {
+          if (m.player1Id === b.id) return sum + (m.p1_average || 0);
+          if (m.player2Id === b.id) return sum + (m.p2_average || 0);
+          return sum;
+        }, 0);
+      const gamesWithAvgB = matches.filter(m => m.completed && ((m.player1Id === b.id && m.p1_average != null) || (m.player2Id === b.id && m.p2_average != null))).length;
+      const avgB = gamesWithAvgB > 0 ? totalAvgB / gamesWithAvgB : 0;
+
+      if (avgB !== avgA) return avgB - avgA;
+
+      // finally compare highest checkout
+      return b.highestCheckout - a.highestCheckout;
+    });
+
     sorted.forEach((p,i) => {
       const totalAvg = matches.filter(m => m.completed && (m.player1Id === p.id || m.player2Id === p.id))
       .reduce((sum, m) => {
@@ -981,7 +1009,34 @@
   function getTournamentWinner() {
     if (players.length === 0) return null;
     
-    const sorted = [...players].sort((a,b) => b.points - a.points);
+    const sorted = [...players].sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+
+      // compare averages
+      const totalAvgA = matches.filter(m => m.completed && (m.player1Id === a.id || m.player2Id === a.id))
+        .reduce((sum, m) => {
+          if (m.player1Id === a.id) return sum + (m.p1_average || 0);
+          if (m.player2Id === a.id) return sum + (m.p2_average || 0);
+          return sum;
+        }, 0);
+      const gamesWithAvgA = matches.filter(m => m.completed && ((m.player1Id === a.id && m.p1_average != null) || (m.player2Id === a.id && m.p2_average != null))).length;
+      const avgA = gamesWithAvgA > 0 ? totalAvgA / gamesWithAvgA : 0;
+
+      const totalAvgB = matches.filter(m => m.completed && (m.player1Id === b.id || m.player2Id === b.id))
+        .reduce((sum, m) => {
+          if (m.player1Id === b.id) return sum + (m.p1_average || 0);
+          if (m.player2Id === b.id) return sum + (m.p2_average || 0);
+          return sum;
+        }, 0);
+      const gamesWithAvgB = matches.filter(m => m.completed && ((m.player1Id === b.id && m.p1_average != null) || (m.player2Id === b.id && m.p2_average != null))).length;
+      const avgB = gamesWithAvgB > 0 ? totalAvgB / gamesWithAvgB : 0;
+
+      if (avgB !== avgA) return avgB - avgA;
+
+      // finally compare highest checkout
+      return b.highestCheckout - a.highestCheckout;
+    });
+
     return sorted[0].name;
   }
 
