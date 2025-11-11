@@ -786,33 +786,42 @@
       div.innerHTML = `
         <div class="match-header">
           <span>Match ${m.id}: ${p1.name} vs ${p2.name}</span>
-          <span>${m.completed ? 'Completed' : 'Pending'}</span>
+          <span>
+            ${m.completed 
+              ? 'Completed <span class="edit-text" data-match="'+m.id+'" style="color:red; font-weight:bold; cursor:pointer;">[edit]</span>' 
+              : 'Pending'}
+          </span>
         </div>
         <div class="game-inputs">
           <div class="player-score">
             <label>${p1.name} Legs Won:</label>
-            <input type="number" min="0" max="4" class="score-input" data-match="${m.id}" data-player="1" value="${m.player1Games!==null?m.player1Games:'0'}" ${m.completed || isViewMode?'disabled':''}>
+            <input type="number" min="0" max="4" class="score-input" data-match="${m.id}" data-player="1" value="${m.player1Games !== null ? m.player1Games : '0'}" ${m.completed || isViewMode ? 'disabled' : ''}>
             <div class="player-extra-stats">
-              <div><label>100+:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="1" data-field="scores100" value="${m.p1_scores100 ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
-              <div><label>180s:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="1" data-field="scores180" value="${m.p1_scores180 ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
-              <div><label>Highest CO:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="1" data-field="highestCheckout" value="${m.p1_highestCheckout ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
-              <div><label>Avg:</label><input type="number" min="0" step="0.01" class="extra-input" data-match="${m.id}" data-player="1" data-field="average" value="${m.p1_average ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
+              <div><label>100+:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="1" data-field="scores100" value="${m.p1_scores100 ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
+              <div><label>180s:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="1" data-field="scores180" value="${m.p1_scores180 ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
+              <div><label>Highest CO:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="1" data-field="highestCheckout" value="${m.p1_highestCheckout ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
+              <div><label>Avg:</label><input type="number" min="0" step="0.01" class="extra-input" data-match="${m.id}" data-player="1" data-field="average" value="${m.p1_average ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
             </div>
           </div>
           <div class="player-score">
             <label>${p2.name} Legs Won:</label>
-            <input type="number" min="0" max="4" class="score-input" data-match="${m.id}" data-player="2" value="${m.player2Games!==null?m.player2Games:'0'}" ${m.completed || isViewMode?'disabled':''}>
+            <input type="number" min="0" max="4" class="score-input" data-match="${m.id}" data-player="2" value="${m.player2Games !== null ? m.player2Games : '0'}" ${m.completed || isViewMode ? 'disabled' : ''}>
             <div class="player-extra-stats">
-              <div><label>100+:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="2" data-field="scores100" value="${m.p2_scores100 ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
-              <div><label>180s:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="2" data-field="scores180" value="${m.p2_scores180 ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
-              <div><label>Highest CO:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="2" data-field="highestCheckout" value="${m.p2_highestCheckout ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
-              <div><label>Avg:</label><input type="number" min="0" step="0.01" class="extra-input" data-match="${m.id}" data-player="2" data-field="average" value="${m.p2_average ?? '0'}" ${m.completed || isViewMode?'disabled':''}></div>
+              <div><label>100+:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="2" data-field="scores100" value="${m.p2_scores100 ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
+              <div><label>180s:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="2" data-field="scores180" value="${m.p2_scores180 ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
+              <div><label>Highest CO:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="2" data-field="highestCheckout" value="${m.p2_highestCheckout ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
+              <div><label>Avg:</label><input type="number" min="0" step="0.01" class="extra-input" data-match="${m.id}" data-player="2" data-field="average" value="${m.p2_average ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
             </div>
           </div>
         </div>
-        ${!isViewMode ? `<button class="save-match" data-match="${m.id}" ${m.completed?'disabled':''}>${m.completed?'Completed':'Save Result'}</button>` : ''}`;
+        ${!isViewMode && !m.completed ? `<button class="save-match" data-match="${m.id}">Save Result</button>` : ''}`;
 
       matchesContainer.appendChild(div);
+    });
+
+    // Add click event to EDIT texts
+    document.querySelectorAll('.edit-text').forEach(el => {
+      el.addEventListener('click', e => enableMatchEditing(parseInt(e.target.dataset.match)));
     });
 
     if (!isViewMode) {
@@ -820,9 +829,42 @@
         btn.addEventListener('click', e => saveMatchResult(e.target.dataset.match));
       });
     }
-    
-    // Check if all matches are completed
+
     checkTournamentCompletion();
+  }
+
+  // Enable editing of a completed match
+  function enableMatchEditing(matchId) {
+    const m = matches.find(x => x.id === matchId);
+    if (!m) return;
+
+    m.completed = false; // mark match as incomplete so inputs unlock
+    const p1 = players.find(p => p.id === m.player1Id);
+    const p2 = players.find(p => p.id === m.player2Id);
+
+    // Revert the stats contributed by this match
+    if (m.player1Games !== null && m.player2Games !== null) {
+      p1.matchesPlayed--; p2.matchesPlayed--;
+      if (m.player1Games > m.player2Games) { p1.matchesWon--; p2.matchesLost--; } 
+      else if (m.player2Games > m.player1Games) { p2.matchesWon--; p1.matchesLost--; } 
+      else { p1.matchesDrawn--; p2.matchesDrawn--; }
+
+      p1.gamesWon -= m.player1Games; p1.gamesLost -= m.player2Games;
+      p2.gamesWon -= m.player2Games; p2.gamesLost -= m.player1Games;
+
+      p1.points -= m.player1Games; p2.points -= m.player2Games;
+
+      // Revert extra stats
+      ['scores100','scores180','highestCheckout','average'].forEach(field => {
+        p1[field] -= m[`p1_${field}`] || 0;
+        p2[field] -= m[`p2_${field}`] || 0;
+      });
+    }
+
+    // Unlock inputs
+    displayMatches();
+    updateLeagueTable();
+    saveTournamentData();
   }
 
   function saveMatchResult(matchId){
