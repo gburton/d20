@@ -1,0 +1,462 @@
+<!-- © 2025 G Burton, https://github.com/gburton/d20 - Licensed CC BY-NC 4.0 https://creativecommons.org/licenses/by-nc/4.0/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Darts Game Tracker</title>
+<style>
+  body {
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f3f5fa;
+    color: #222;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    margin-bottom: 20px;
+  }
+
+  header {
+    background: #222;
+    color: #fff;
+    width: 100%;
+    padding: 10px 0;
+    text-align: center;
+    font-size: 1.6rem;
+    letter-spacing: 0.5px;
+  }
+
+  main {
+    display: flex;
+    width: 90vw;
+    max-width: 1600px;
+    margin-top: 25px;
+    gap: 25px;
+    flex: 1;
+  }
+
+  .column {
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    padding: 25px;
+    overflow-y: auto;
+  }
+
+  #leftColumn { flex: 2; }
+  #rightColumn { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+
+  #setup input, #setup button {
+    padding: 10px;
+    margin: 6px 0;
+    width: 100%;
+    font-size: 1rem;
+  }
+
+  #setup button {
+    background: #0078d4;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  #setup button:hover { background: #005fa3; }
+
+  #tabButtons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+  #tabButtons button { padding: 8px 14px; border: 1px solid #ccc; border-radius: 6px; background: #eee; cursor: pointer; transition: all 0.2s; }
+  #tabButtons button:hover { background: #ddd; }
+  #tabButtons button.active { background: #0078d4; color: white; font-weight: bold; }
+
+  .tab-content h3 { font-size: 2rem; font-weight: 700; margin-bottom: 15px; }
+  .tab-content { border: 1px solid #ddd; padding: 15px; border-radius: 10px; background: #fafafa; }
+  .hidden { display: none; }
+
+  input[type="number"] {
+    width: 120px;
+    padding: 12px 15px;
+    font-size: 1.3rem;
+    border-radius: 10px;
+    border: 2px solid #0078d4;
+    outline: none;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+  }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+
+  .player-stat-box {
+    background: #f0f4ff;
+    border: 1px solid #cdd8ff;
+    border-radius: 12px;
+    padding: 15px 20px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 6px rgba(0,0,0,0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .player-stat-box:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+  .player-stat-label { font-weight: 600; color: #444; font-size: 1rem; }
+  .player-stat-value { font-size: 1.2rem; font-weight: 700; color: #222; }
+
+  .stat-box {
+    background: linear-gradient(145deg, #ffffff, #f0f3ff);
+    border: 1px solid #d6dcf3;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 6px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .stat-box:hover { transform: translateY(-3px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+  .stat-icon { font-size: 2rem; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .stat-content { display: flex; flex-direction: column; }
+  .stat-label { font-weight: 600; font-size: 0.9rem; color: #444; }
+  .stat-value { font-size: 2rem; }
+  .icon-darts { }
+  .icon-score { }
+  .icon-time  { }
+
+  #summaryContainer {
+    background: #fafbff;
+    border: 1px solid #d6dcf3;
+    border-radius: 12px;
+    padding: 0px;
+    margin-top: 10px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+    text-align: center;
+  }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 10px; font-size: 0.95rem; }
+  th, td { padding: 6px 8px; text-align: center; }
+
+  #resetGame {
+    background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 8px;
+    font-size: 0.9rem; cursor: pointer; margin-top: 10px; align-self: flex-start;
+  }
+  #resetGame:hover { background: #c0392b; }
+  
+
+  #setup {
+    max-width: 95%;
+    padding: 2rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    text-align: center;
+  }
+
+  #setup h3 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+    color: #212529;
+  }
+
+  #setup label {
+    display: block;
+    text-align: left;
+    font-weight: 500;
+    margin: 1rem 0 0.5rem 0;
+    color: #495057;
+    font-size: 0.9rem;
+  }
+
+  #setup input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1rem;
+    background: white;
+    box-sizing: border-box;
+  }
+
+  #setup input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+  }
+
+  #setup input::placeholder {
+    color: #6c757d;
+  }
+
+  #startGame {
+    width: 100%;
+    padding: 0.75rem;
+    margin-top: 1.5rem;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  #startGame:hover {
+    background: #0056b3;
+  }
+</style>
+</head>
+<body>
+
+<header>🎯 MacMillan Darts Marathon Tracker</header>
+
+<main>
+  <div id="leftColumn" class="column">
+    <div id="setup">
+      <h3>🎯 Start New Game</h3>
+      <label>Players (comma separated):</label>
+      <input type="text" id="playersInput" placeholder="e.g. Andrew, James, Steve">
+      <label>Starting Number:</label>
+      <input type="number" id="startingNumber" placeholder="e.g. 100001">
+      <button id="startGame">🚀 Start Game</button>
+    </div>
+    <div id="game" class="hidden">
+      <div id="tabButtons"></div>
+      <div id="tabsContainer"></div>
+    </div>
+  </div>
+
+  <div id="rightColumn" class="column">
+    <div class="stat-box">
+      <div class="stat-icon icon-darts">🎯</div>
+      <div class="stat-content">
+        <div class="stat-label">Total Darts</div>
+        <div class="stat-value" id="totalDarts">0</div>
+      </div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-icon icon-score">💥</div>
+      <div class="stat-content">
+        <div class="stat-label">Remaining Score</div>
+        <div class="stat-value" id="remainingScore">0</div>
+      </div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-icon icon-time">⏱️</div>
+      <div class="stat-content">
+        <div class="stat-label">Time Elapsed</div>
+        <div class="stat-value" id="elapsedTime">0:00</div>
+      </div>
+    </div>
+    
+    <div id="summaryContainer"></div>
+    
+    <button id="resetGame">Reset Game</button>
+  </div>
+</main>
+
+<script>
+let gameData = { startingNumber:0, remainingScore:0, startTime:null, players:{}, totalDarts:0, timerInterval:null, completed:false };
+
+function saveGame(){localStorage.setItem("dartsGame",JSON.stringify(gameData))}
+function loadGame(){const saved=localStorage.getItem("dartsGame");if(saved){gameData=JSON.parse(saved);return true;}return false;}
+function clearGame(){localStorage.removeItem("dartsGame");}
+
+function updateGlobalStats(){
+  document.getElementById("totalDarts").textContent=gameData.totalDarts;
+  document.getElementById("remainingScore").textContent=gameData.remainingScore;
+}
+
+function updateTimer(){
+  if(!gameData.startTime)return;
+  const elapsed=Math.floor((Date.now()-gameData.startTime)/1000);
+  const mins=Math.floor(elapsed/60);
+  const secs=elapsed%60;
+  document.getElementById("elapsedTime").textContent=`${mins}:${secs.toString().padStart(2,'0')}`;
+}
+
+function createTabs(){
+  const tabButtons=document.getElementById("tabButtons");
+  const tabsContainer=document.getElementById("tabsContainer");
+  tabButtons.innerHTML=""; 
+  tabsContainer.innerHTML="";
+
+  Object.keys(gameData.players).forEach((player,i)=>{
+    const btn=document.createElement("button");
+    btn.textContent=player; 
+    btn.onclick=()=>showTab(player);
+    tabButtons.appendChild(btn);
+
+    const tab=document.createElement("div");
+    tab.id=`tab-${player}`;
+    tab.className = "tab-content hidden";
+
+    tab.innerHTML = `
+      <h3>${player}</h3>
+      <label>Enter score: <input type="number" id="scoreInput-${player}" min="0" max="180"></label>
+      <div class="player-stat-box"><div class="player-stat-label">🎯 Darts Thrown</div><div class="player-stat-value" id="darts-${player}">0</div></div>
+      <div class="player-stat-box"><div class="player-stat-label">⚡ Average</div><div class="player-stat-value" id="avg-${player}">0</div></div>
+      <div class="player-stat-box"><div class="player-stat-label">🔝 Highest Score</div><div class="player-stat-value" id="high-${player}">0</div></div>
+      <div class="player-stat-box"><div class="player-stat-label">⬇️ Lowest Score</div><div class="player-stat-value" id="low-${player}">0</div></div>
+      <div class="player-stat-box"><div class="player-stat-label">💥 Running Total</div><div class="player-stat-value" id="total-${player}">0</div></div>
+      <div class="player-stat-box"><div class="player-stat-label">📜 Hits </div><div class="player-stat-value" id="scores-${player}">&nbsp;</div></div>
+    `;
+
+    tabsContainer.appendChild(tab);
+
+    const input = tab.querySelector(`#scoreInput-${player}`);
+
+    if(gameData.completed){
+      input.disabled = true;
+    } else {
+      input.addEventListener("keydown",(e)=>{
+        if(e.key === "Enter"){
+          e.preventDefault();
+          submitScore(player);
+          input.focus();
+        }
+      });
+    }
+
+    const p = gameData.players[player];
+    if(p.scores.length > 0){
+      document.getElementById(`darts-${player}`).textContent = p.totalDarts;
+      document.getElementById(`avg-${player}`).textContent = (p.totalScore/(p.scores.length)).toFixed(2);
+      document.getElementById(`high-${player}`).textContent = p.highest;
+      document.getElementById(`low-${player}`).textContent = p.lowest;
+      document.getElementById(`total-${player}`).textContent = p.total;
+      document.getElementById(`scores-${player}`).textContent = p.scores.join(", ");
+    }
+
+    if(i === 0) showTab(player);
+  });
+
+  if(!document.getElementById("summaryContainer")){
+    const summaryDiv = document.createElement("div");
+    summaryDiv.id = "summaryContainer"; 
+    summaryDiv.style.marginTop = "20px";
+    tabsContainer.after(summaryDiv);
+  }
+}
+
+function showTab(player){
+  document.querySelectorAll(".tab-content").forEach(tab=>tab.classList.add("hidden"));
+  document.querySelectorAll("#tabButtons button").forEach(btn=>btn.classList.remove("active"));
+  const currentTab = document.getElementById(`tab-${player}`);
+  currentTab.classList.remove("hidden");
+  const btn = [...document.querySelectorAll("#tabButtons button")].find(b=>b.textContent===player);
+  if(btn) btn.classList.add("active");
+  const input = currentTab.querySelector("input[type='number']");
+  if(input) setTimeout(()=>input.focus(),50);
+}
+
+function showSummary(){
+  clearInterval(gameData.timerInterval);
+  const elapsed = Math.floor((Date.now()-gameData.startTime)/1000);
+  const mins = Math.floor(elapsed/60);
+  const secs = elapsed%60;
+
+  const playersArray = Object.entries(gameData.players).map(([name, p]) => {
+    return {
+      name,
+      totalDarts: p.totalDarts,
+      average: p.scores.length ? p.totalScore / p.scores.length : 0,
+      highest: p.highest,
+      lowest: p.lowest,
+      totalScore: p.totalScore
+    };
+  });
+
+  playersArray.sort((a,b) => b.average - a.average);
+
+  let summaryHTML = `<h3>🎯 End of Game Summary</h3>
+    <table border="0" cellpadding="5" cellspacing="0">
+      <tr>
+        <th title="player">🧑‍</th>
+        <th title="darts thrown">🎯</th>
+        <th title="highest">🔝</th>
+        <th title="lowest">⬇️</th>
+        <th title="total">💥</th>
+        <th title="average">⚡</th>
+      </tr>`;
+
+  playersArray.forEach(p => {
+    summaryHTML += `<tr>
+      <th>${p.name}</th><td>${p.totalDarts}</td><td>${p.highest}</td>
+      <td>${p.lowest}</td><td>${p.totalScore}</td><th>${p.average.toFixed(2)}</th>
+    </tr>`;
+  });
+
+  summaryHTML += `</table>`;
+  document.getElementById("summaryContainer").innerHTML = summaryHTML;
+}
+
+function submitScore(player){
+  const input = document.getElementById(`scoreInput-${player}`);
+  const value = parseInt(input.value); if(isNaN(value)||value<0) return;
+  const p = gameData.players[player];
+  p.scores.push(value); 
+  p.totalDarts += 3; 
+  p.highest = Math.max(p.highest,value); 
+  p.lowest = p.lowest === 0 ? value:Math.min(p.lowest,value); 
+  p.totalScore += value;
+  gameData.remainingScore -= value; 
+  gameData.totalDarts += 3;
+
+  document.getElementById(`darts-${player}`).textContent = p.totalDarts;
+  document.getElementById(`avg-${player}`).textContent = (p.totalScore/(p.scores.length)).toFixed(2);
+  document.getElementById(`high-${player}`).textContent = p.highest;
+  document.getElementById(`low-${player}`).textContent = p.lowest;
+  document.getElementById(`total-${player}`).textContent = p.totalScore;
+  document.getElementById(`scores-${player}`).textContent = p.scores.join(", ");
+
+  updateGlobalStats();
+
+  if(gameData.remainingScore <= 0){
+    gameData.remainingScore = 0;
+    gameData.completed = true;   
+    document.querySelectorAll('input[type="number"]').forEach(input => input.disabled = true);
+    saveGame();              
+    updateGlobalStats();
+    showSummary();
+  } else {
+    saveGame(); 
+  }
+
+  input.value = "";
+}
+
+function startTimer(){gameData.timerInterval = setInterval(()=>{updateTimer();},1000);}
+
+document.getElementById("startGame").onclick = ()=>{
+  const names = document.getElementById("playersInput").value.split(",").map(n=>n.trim()).filter(n=>n);
+  const startNum = parseInt(document.getElementById("startingNumber").value);
+  if(names.length===0||isNaN(startNum)||startNum<=0){alert("Please enter valid players and a starting number."); return;}
+  gameData = {startingNumber:startNum,remainingScore:startNum,startTime:Date.now(),players:{},totalDarts:0,completed:false};
+  names.forEach(name=>gameData.players[name] = {scores:[],totalDarts:0,highest:0,lowest:0,totalScore:0});
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  createTabs(); updateGlobalStats(); startTimer(); saveGame();
+  showTab(names[0]);
+};
+
+document.getElementById("resetGame").onclick = ()=>{if(confirm("Are you sure you want to reset the game?")){clearGame(); location.reload();}};
+
+if (loadGame()) {
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  createTabs();
+  updateGlobalStats();
+
+  if(gameData.completed){
+    showSummary();
+  } else {
+    startTimer();
+    updateTimer();
+    showTab(Object.keys(gameData.players)[0]);
+  }
+}
+</script>
+
+</body>
+</html>
