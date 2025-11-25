@@ -489,6 +489,11 @@
           <input type="text" id="playerName" placeholder="Enter player name">
         </div>
 
+        <div class="form-group">
+          <label for="legsPerMatch">Legs per Match:</label>
+          <input type="number" id="legsPerMatch" min="1" max="10" value="4" placeholder="Enter legs per match">
+        </div>
+
         <button id="addPlayer">Add Player</button>
 
         <div class="status info" id="playerStatus">No players added yet. Add up to 12 players.</div>
@@ -518,7 +523,8 @@
     MATCHES: 'tournament_matches',
     STARTED: 'tournament_started',
     COMPLETED: 'tournament_completed',
-    SAVED_TOURNAMENTS: 'saved_tournaments'
+    SAVED_TOURNAMENTS: 'saved_tournaments',
+    LEGS_PER_MATCH: 'tournament_legs_per_match'
   };
 
   let players = [];
@@ -528,8 +534,10 @@
   let savedTournaments = [];
   let isViewMode = false;
   let currentViewTournament = null;
+  let legsPerMatch = 4;
 
   const playerNameInput = document.getElementById('playerName');
+  const legsPerMatchInput = document.getElementById('legsPerMatch');
   const addPlayerButton = document.getElementById('addPlayer');
   const playerList = document.getElementById('playerList');
   const playerCount = document.getElementById('playerCount');
@@ -586,6 +594,7 @@
     
     // Disable all editing functionality
     playerNameInput.disabled = true;
+    legsPerMatchInput.disabled = true;
     addPlayerButton.disabled = true;
     startTournamentButton.disabled = true;
     resetTournamentButton.disabled = true;
@@ -597,6 +606,7 @@
     // Load tournament data for viewing only
     players = JSON.parse(JSON.stringify(tournament.players));
     matches = JSON.parse(JSON.stringify(tournament.matches));
+    legsPerMatch = tournament.legsPerMatch || 4;
     tournamentStarted = true;
     tournamentCompleted = true;
     
@@ -613,6 +623,7 @@
     localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(matches));
     localStorage.setItem(STORAGE_KEYS.STARTED, JSON.stringify(tournamentStarted));
     localStorage.setItem(STORAGE_KEYS.COMPLETED, JSON.stringify(tournamentCompleted));
+    localStorage.setItem(STORAGE_KEYS.LEGS_PER_MATCH, JSON.stringify(legsPerMatch));
   }
 
   // Load tournament data from localStorage
@@ -621,6 +632,7 @@
     const savedMatches = localStorage.getItem(STORAGE_KEYS.MATCHES);
     const savedStarted = localStorage.getItem(STORAGE_KEYS.STARTED);
     const savedCompleted = localStorage.getItem(STORAGE_KEYS.COMPLETED);
+    const savedLegsPerMatch = localStorage.getItem(STORAGE_KEYS.LEGS_PER_MATCH);
 
     if (savedPlayers) {
       players = JSON.parse(savedPlayers);
@@ -638,6 +650,7 @@
       // Disable player management if tournament was already started
       if (tournamentStarted) {
         playerNameInput.disabled = true;
+        legsPerMatchInput.disabled = true;
         addPlayerButton.disabled = true;
         startTournamentButton.disabled = true;
       }
@@ -645,6 +658,11 @@
 
     if (savedCompleted) {
       tournamentCompleted = JSON.parse(savedCompleted);
+    }
+
+    if (savedLegsPerMatch) {
+      legsPerMatch = JSON.parse(savedLegsPerMatch);
+      legsPerMatchInput.value = legsPerMatch;
     }
 
     // If tournament was started, display matches and league table
@@ -727,10 +745,20 @@
 
   function startTournament() {
     if (players.length < 2) return alert('Need at least 2 players to start');
+    
+    // Get and validate legs per match
+    const legsInput = parseInt(legsPerMatchInput.value);
+    if (isNaN(legsInput) || legsInput < 1) {
+      alert('Please enter a valid number of legs per match (minimum 1)');
+      return;
+    }
+    legsPerMatch = legsInput;
+    
     tournamentStarted = true;
     
     // Disable player management when tournament starts
     playerNameInput.disabled = true;
+    legsPerMatchInput.disabled = true;
     addPlayerButton.disabled = true;
     startTournamentButton.disabled = true;
     
@@ -795,7 +823,7 @@
         <div class="game-inputs">
           <div class="player-score">
             <label>${p1.name} Legs Won:</label>
-            <input type="number" min="0" max="4" class="score-input" data-match="${m.id}" data-player="1" value="${m.player1Games !== null ? m.player1Games : '0'}" ${m.completed || isViewMode ? 'disabled' : ''}>
+            <input type="number" min="0" max="${legsPerMatch}" class="score-input" data-match="${m.id}" data-player="1" value="${m.player1Games !== null ? m.player1Games : '0'}" ${m.completed || isViewMode ? 'disabled' : ''}>
             <div class="player-extra-stats">
               <div><label>100+:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="1" data-field="scores100" value="${m.p1_scores100 ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
               <div><label>180s:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="1" data-field="scores180" value="${m.p1_scores180 ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
@@ -805,7 +833,7 @@
           </div>
           <div class="player-score">
             <label>${p2.name} Legs Won:</label>
-            <input type="number" min="0" max="4" class="score-input" data-match="${m.id}" data-player="2" value="${m.player2Games !== null ? m.player2Games : '0'}" ${m.completed || isViewMode ? 'disabled' : ''}>
+            <input type="number" min="0" max="${legsPerMatch}" class="score-input" data-match="${m.id}" data-player="2" value="${m.player2Games !== null ? m.player2Games : '0'}" ${m.completed || isViewMode ? 'disabled' : ''}>
             <div class="player-extra-stats">
               <div><label>100+:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="2" data-field="scores100" value="${m.p2_scores100 ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
               <div><label>180s:</label><input type="number" min="0" class="extra-input" data-match="${m.id}" data-player="2" data-field="scores180" value="${m.p2_scores180 ?? '0'}" ${m.completed || isViewMode ? 'disabled' : ''}></div>
@@ -878,7 +906,7 @@
     const g2 = parseInt(document.querySelector(`.score-input[data-match="${matchId}"][data-player="2"]`).value);
 
     if(isNaN(g1) || isNaN(g2)) return alert('Enter valid numbers');
-    if(g1 + g2 !== 4) return alert('Total legs must equal 4');
+    if(g1 + g2 !== legsPerMatch) return alert('Total legs must equal ' + legsPerMatch);
 
     m.player1Games = g1; m.player2Games = g2; m.completed = true;
     p1.matchesPlayed++; p2.matchesPlayed++;
@@ -985,9 +1013,12 @@
       matches = []; 
       tournamentStarted = false; 
       tournamentCompleted = false;
+      legsPerMatch = 4;
       
       // Re-enable player management when tournament is reset
       playerNameInput.disabled = false; 
+      legsPerMatchInput.disabled = false;
+      legsPerMatchInput.value = 4;
       addPlayerButton.disabled = false; 
       startTournamentButton.disabled = true;
       
@@ -1001,6 +1032,7 @@
       localStorage.removeItem(STORAGE_KEYS.MATCHES);
       localStorage.removeItem(STORAGE_KEYS.STARTED);
       localStorage.removeItem(STORAGE_KEYS.COMPLETED);
+      localStorage.removeItem(STORAGE_KEYS.LEGS_PER_MATCH);
     }
   }
 
@@ -1036,6 +1068,7 @@
       date: new Date().toISOString(),
       players: JSON.parse(JSON.stringify(players)),
       matches: JSON.parse(JSON.stringify(matches)),
+      legsPerMatch: legsPerMatch,
       winner: getTournamentWinner()
     };
     
