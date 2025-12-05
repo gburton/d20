@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Quadro 501 Darts Scorer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-start justify-center p-4">
+  <div class="bg-white shadow-xl rounded-2xl p-6 w-full max-w-5xl space-y-6">
+    <!-- TOP INPUT AREA -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+      <!-- P 1 PANEL -->
+      <div class="text-center space-y-2">
+        <h2 class="font-semibold">P1</h2>
+        <div class="text-5xl font-extrabold" id="legs1">0</div>
+        <div class="text-xs">LEGS</div>
+        <div id="score1" class="text-5xl text-red-500 font-bold">501</div>
+      </div>
+
+      <!-- INPUT PANEL -->
+      <div class="text-center space-y-2">
+        <div id="currentPlayerDisplay" class="text-5xl font-bold">P1</div>
+        <input id="sharedInput" type="number" min="0" max="240" placeholder="Enter 0–240" autofocus
+               class="w-full border rounded p-2 text-center">
+        <button onclick="submitScore()" class="w-full bg-blue-600 text-white rounded p-2">Submit Score</button>
+        <div id="status" class="text-sm font-semibold"></div>
+      </div>
+
+      <!-- PLAYER 2 PANEL -->
+      <div class="text-center space-y-2">
+        <h2 class="font-semibold">P2</h2>
+        <div class="text-5xl font-extrabold" id="legs2">0</div>
+        <div class="text-xs">LEGS</div>
+        <div id="score2" class="text-5xl text-red-500 font-bold">501</div>
+      </div>
+    </div>
+
+    <!-- SCORE COLUMNS -->
+    <div class="grid grid-cols-2 gap-6">
+    
+    
+        
+      <div>
+      
+        <table class="w-full text-center table-fixed">
+          <thead>
+            <tr class="bg-black text-white">
+              <th>100+</th>
+              <th>140+</th>
+              <th>180+</th>
+              <th>200+</th>
+              <th>240</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td id="p1_100">0</td>
+              <td id="p1_140">0</td>
+              <td id="p1_180">0</td>
+              <td id="p1_200">0</td>
+              <td id="p1_240">0</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <ul id="list1" class="border rounded p-2 space-y-1 max-h-64 overflow-y-auto text-center"></ul>
+      </div>
+      <div>
+        <table class="w-full text-center table-fixed">
+          <thead>
+            <tr class="bg-black text-white">
+              <th>100+</th>
+              <th>140+</th>
+              <th>180+</th>
+              <th>200+</th>
+              <th>240</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td id="p2_100">0</td>
+              <td id="p2_140">0</td>
+              <td id="p2_180">0</td>
+              <td id="p2_200">0</td>
+              <td id="p2_240">0</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <ul id="list2" class="border rounded p-2 space-y-1 max-h-64 overflow-y-auto text-center"></ul>
+      </div>
+    </div>
+
+    <!-- CONTROL BUTTONS -->
+    <div class="grid grid-cols-2 gap-4">
+      <button onclick="newLeg()" class="w-full bg-blue-200 rounded p-2 font-semibold">New Leg (Same Players)</button>
+      <button onclick="resetGame()" class="w-full bg-gray-200 rounded p-2 font-semibold">Reset Game (New Players)</button>
+    </div>
+  </div>
+
+  <script>
+    // ====== STATE ======
+    let scores = { 1: 501, 2: 501 };
+
+    // ✅ PER-LEG HISTORY (resets on new leg)
+    let history = { 1: [], 2: [] }; 
+
+    // ✅ MATCH-LONG STATS (persist across legs)
+    let stats = {
+      1: { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 },
+      2: { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 }
+    };
+
+    let currentPlayer = 1;
+    let legs = { 1: 0, 2: 0 };
+
+    const inputEl = document.getElementById("sharedInput");
+
+    // ====== PERSISTENCE (Added for data retention) ======
+    function saveState() {
+      const state = { scores, history, stats, currentPlayer, legs };
+      localStorage.setItem("quadro501_state", JSON.stringify(state));
+    }
+
+    function loadState() {
+      const raw = localStorage.getItem("quadro501_state");
+      if (!raw) return;
+
+      try {
+        const state = JSON.parse(raw);
+        scores = state.scores || scores;
+        history = state.history || { 1: [], 2: [] }; 
+        stats = state.stats || stats;
+        currentPlayer = state.currentPlayer || 1;
+        legs = state.legs || legs;
+      } catch (e) {
+        console.warn("Failed to restore state", e);
+      }
+    }
+    
+    function syncUI() {
+      updateScore(1, scores[1]);
+      updateScore(2, scores[2]);
+      updateLegs();
+      renderStats(1);
+      renderStats(2);
+      renderHistory();
+      updateCurrentPlayerDisplay();
+      if (scores[1] === 0 || scores[2] === 0) disableInput();
+      else enableInput();
+    }
+    // =======================================================
+    
+    
+    // --- ALWAYS KEEP INPUT FOCUSED ---
+    setInterval(() => {
+      if (!inputEl.disabled) inputEl.focus();
+    }, 300);
+
+    // --- ENTER KEY SUBMISSION ---
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submitScore();
+    });
+
+    function submitScore() {
+      const value = parseInt(inputEl.value);
+
+      if (isNaN(value) || value < 0 || value > 240) {
+        alert("Invalid score. Must be between 0 and 240.");
+        inputEl.value = "";
+        return;
+      }
+
+      const newScore = scores[currentPlayer] - value;
+
+      // FIX: Added newScore === 1 check for bust rule
+      if (newScore < 0 || newScore === 1) { 
+        history[currentPlayer].push({ value, bust: true });
+        setStatus(`Bust! P${currentPlayer} remains at ${scores[currentPlayer]}.`);
+      } 
+      else if (newScore === 0) {
+        history[currentPlayer].push({ value, bust: false });
+        applyStats(currentPlayer, value);
+        updateScore(currentPlayer, 0);
+        renderHistory();
+
+        legs[currentPlayer]++;
+        updateLegs();
+
+        setStatus(`🎯 P${currentPlayer} wins the leg`);
+        disableInput();
+        saveState(); // Save state on win
+        return;
+      } 
+      else {
+        history[currentPlayer].push({ value, bust: false });
+        applyStats(currentPlayer, value);
+        updateScore(currentPlayer, newScore);
+        setStatus(`P${currentPlayer} scored ${value}`);
+      }
+
+      renderHistory();
+      inputEl.value = "";
+      currentPlayer = currentPlayer === 1 ? 2 : 1;
+      updateCurrentPlayerDisplay();
+      saveState(); // Save state after every submission
+    }
+
+    // ✅ EXCLUSIVE STAT BUCKETS (MATCH-LONG)
+    function applyStats(player, value) {
+      if (value >= 240) stats[player].s240++;
+      else if (value >= 200) stats[player].s200++;
+      else if (value >= 180) stats[player].s180++;
+      else if (value >= 140) stats[player].s140++;
+      else if (value >= 100) stats[player].s100++;
+
+      renderStats(player);
+    }
+    
+    // Added helper function to reset player's match stats
+    function resetPlayerStats(player) {
+      stats[player] = { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 };
+    }
+
+
+    function renderStats(player) {
+      document.getElementById(`p${player}_100`).textContent = stats[player].s100;
+      document.getElementById(`p${player}_140`).textContent = stats[player].s140;
+      document.getElementById(`p${player}_180`).textContent = stats[player].s180;
+      document.getElementById(`p${player}_200`).textContent = stats[player].s200;
+      document.getElementById(`p${player}_240`).textContent = stats[player].s240;
+    }
+
+    function updateScore(player, score) {
+      scores[player] = score;
+      document.getElementById(`score${player}`).textContent = score;
+    }
+
+    function updateLegs() {
+      document.getElementById("legs1").textContent = legs[1];
+      document.getElementById("legs2").textContent = legs[2];
+    }
+
+    // ✅ FINAL COSMETIC FIX: Ensured list item content is rendered on one compact line
+    function renderHistory() {
+      const list1 = document.getElementById("list1");
+      const list2 = document.getElementById("list2");
+
+      list1.innerHTML = history[1].map((turn, i) => `<li onclick="editScore(1, ${i})" class="cursor-pointer hover:underline text-3xl">${turn.bust ? `BUST (${turn.value})` : turn.value}</li>`).join("");
+
+      list2.innerHTML = history[2].map((turn, i) => `<li onclick="editScore(2, ${i})" class="cursor-pointer hover:underline text-3xl">${turn.bust ? `BUST (${turn.value})` : turn.value}</li>`).join("");
+      
+      // Scroll to bottom on history updates
+      list1.scrollTop = list1.scrollHeight;
+      list2.scrollTop = list2.scrollHeight;
+    }
+
+    // ✅ ROBUST EDIT SCORE
+    function editScore(player, index) {
+      const oldTurn = history[player][index];
+      const input = prompt(`Edit P${player} Turn ${index + 1} score (0–240):`, oldTurn.value);
+      if (input === null) return;
+
+      const newValue = parseInt(input);
+      if (isNaN(newValue) || newValue < 0 || newValue > 240) return;
+      
+      // 1. Determine the score adjustment
+      let scoreAdjustment = 0;
+      
+      if (oldTurn.bust) {
+        // If it was a bust, the score didn't change, so we subtract the new value from current score
+        scoreAdjustment = -newValue; 
+      } else {
+        // If it was a score, we restore the old value and subtract the new one
+        scoreAdjustment = oldTurn.value - newValue;
+      }
+      
+      const potentialNewScore = scores[player] + scoreAdjustment;
+
+      // 2. Check for bust/win condition
+      if (potentialNewScore < 0 || potentialNewScore === 1) {
+        alert("Error: That change results in a score less than 0 or exactly 1. Edit aborted.");
+        return;
+      }
+      
+      // 3. Apply changes to history and score
+      history[player][index].value = newValue;
+      history[player][index].bust = false; // Assume corrected score is not a bust (if bust, alert above prevents)
+      
+      updateScore(player, potentialNewScore);
+      
+      // 4. Recalculate stats for the player after a score edit (reset and re-apply all turns)
+      resetPlayerStats(player);
+      history[player].forEach(turn => {
+        if (!turn.bust) applyStats(player, turn.value);
+      });
+
+      renderHistory();
+      renderStats(player);
+      saveState();
+      
+      setStatus(`✅ P${player} Turn ${index + 1} score corrected to ${newValue}.`);
+      enableInput();
+    }
+
+    // ✅ NEW LEG → SCORES + HISTORY RESET, STATS + LEGS PERSIST
+    function newLeg() {
+      scores = { 1: 501, 2: 501 };
+      history = { 1: [], 2: [] };
+
+      updateScore(1, 501);
+      updateScore(2, 501);
+      renderHistory();
+
+      currentPlayer = 1;
+      updateCurrentPlayerDisplay();
+      enableInput();
+      inputEl.value = "";
+      setStatus("New leg started – stats preserved");
+      saveState();
+    }
+
+    function resetGame() {
+      // Added confirmation for hard reset
+      if (!confirm("Are you sure you want to reset the entire match history and stats?")) return;
+
+      scores = { 1: 501, 2: 501 };
+      history = { 1: [], 2: [] };
+      legs = { 1: 0, 2: 0 };
+
+      stats = {
+        1: { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 },
+        2: { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 }
+      };
+      
+      localStorage.removeItem("quadro501_state"); // Clear saved data
+
+      renderStats(1);
+      renderStats(2);
+      updateLegs();
+      updateScore(1, 501);
+      updateScore(2, 501);
+      renderHistory();
+
+      currentPlayer = 1;
+      updateCurrentPlayerDisplay();
+      enableInput();
+      inputEl.value = "";
+      setStatus("Game fully reset.");
+    }
+
+    function setStatus(msg) {
+      document.getElementById("status").textContent = msg;
+    }
+
+    function updateCurrentPlayerDisplay() {
+      document.getElementById("currentPlayerDisplay").textContent = `P${currentPlayer}`;
+    }
+
+    function disableInput() { inputEl.disabled = true; }
+    function enableInput() { inputEl.disabled = false; inputEl.focus(); }
+    
+    // ====== INITIALIZATION (Added for persistence) ======
+    loadState();
+    syncUI();
+  </script>
+</body>
+</html>
