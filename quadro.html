@@ -12,10 +12,11 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
       <!-- P 1 PANEL -->
       <div class="text-center space-y-2">
-        <h2 class="font-semibold">P1</h2>
+        <h2 id="h2p1" class="font-semibold bg-green-200 rounded-full px-4 py-1">P1</h2>
         <div class="text-5xl font-extrabold" id="legs1">0</div>
         <div class="text-xs">LEGS</div>
         <div id="score1" class="text-5xl text-red-500 font-bold">501</div>
+        <div class="text-lg font-semibold">AVG: <span id="avg1">0.00</span></div>
       </div>
 
       <!-- INPUT PANEL -->
@@ -24,25 +25,23 @@
         <input id="sharedInput" type="number" min="0" max="240" placeholder="Enter 0–240" autofocus
                class="w-full border rounded p-2 text-center">
         <button onclick="submitScore()" class="w-full bg-blue-600 text-white rounded p-2">Submit Score</button>
+        <button onclick="undoLastThrow()" class="w-full bg-yellow-300 rounded p-2 font-semibold">Undo Last Throw</button>
         <div id="status" class="text-sm font-semibold"></div>
       </div>
 
       <!-- PLAYER 2 PANEL -->
       <div class="text-center space-y-2">
-        <h2 class="font-semibold">P2</h2>
+        <h2 id="h2p2" class="font-semibold bg-green-200 rounded-full px-4 py-1">P2</h2>
         <div class="text-5xl font-extrabold" id="legs2">0</div>
         <div class="text-xs">LEGS</div>
         <div id="score2" class="text-5xl text-red-500 font-bold">501</div>
+        <div class="text-lg font-semibold">AVG: <span id="avg2">0.00</span></div>
       </div>
     </div>
 
     <!-- SCORE COLUMNS -->
     <div class="grid grid-cols-2 gap-6">
-    
-    
-        
       <div>
-      
         <table class="w-full text-center table-fixed">
           <thead>
             <tr class="bg-black text-white">
@@ -63,7 +62,6 @@
             </tr>
           </tbody>
         </table>
-        
         <ul id="list1" class="border rounded p-2 space-y-1 max-h-64 overflow-y-auto text-center"></ul>
       </div>
       <div>
@@ -87,7 +85,6 @@
             </tr>
           </tbody>
         </table>
-        
         <ul id="list2" class="border rounded p-2 space-y-1 max-h-64 overflow-y-auto text-center"></ul>
       </div>
     </div>
@@ -100,270 +97,271 @@
   </div>
 
   <script>
-    // ====== STATE ======
-    let scores = { 1: 501, 2: 501 };
+  // ===== SAFE CLONE (for browser compatibility) =====
+  function clone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
 
-    // ✅ PER-LEG HISTORY (resets on new leg)
-    let history = { 1: [], 2: [] }; 
+  const defaultState = {
+    scores: { 1: 501, 2: 501 },
+    history: { 1: [], 2: [] },
+    stats: {
+      1: { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 },
+      2: { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 }
+    },
+    avgTotals: { 1: { points: 0, visits: 0 }, 2: { points: 0, visits: 0 } },
+    currentPlayer: 1,
+    legs: { 1: 0, 2: 0 }
+  };
 
-    // ✅ MATCH-LONG STATS (persist across legs)
-    let stats = {
-      1: { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 },
-      2: { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 }
-    };
+  let scores = clone(defaultState.scores);
+  let history = clone(defaultState.history);
+  let stats = clone(defaultState.stats);
+  let avgTotals = clone(defaultState.avgTotals);
+  let currentPlayer = 1;
+  let legs = clone(defaultState.legs);
 
-    let currentPlayer = 1;
-    let legs = { 1: 0, 2: 0 };
+  const inputEl = document.getElementById("sharedInput");
 
-    const inputEl = document.getElementById("sharedInput");
+  // ===== PERSISTENCE =====
+  function saveState() {
+    const state = { scores, history, stats, avgTotals, currentPlayer, legs };
+    localStorage.setItem("quadro501_state", JSON.stringify(state));
+  }
 
-    // ====== PERSISTENCE (Added for data retention) ======
-    function saveState() {
-      const state = { scores, history, stats, currentPlayer, legs };
-      localStorage.setItem("quadro501_state", JSON.stringify(state));
-    }
+  function loadState() {
+    const raw = localStorage.getItem("quadro501_state");
+    if (!raw) return;
+    try {
+      const state = JSON.parse(raw);
+      scores = state.scores || scores;
+      history = state.history || history;
+      stats = state.stats || stats;
+      avgTotals = state.avgTotals || avgTotals;
+      currentPlayer = state.currentPlayer || 1;
+      legs = state.legs || legs;
+    } catch (e) { console.warn("Restore failed", e); }
+  }
 
-    function loadState() {
-      const raw = localStorage.getItem("quadro501_state");
-      if (!raw) return;
+  function syncUI() {
+    updateScore(1, scores[1]);
+    updateScore(2, scores[2]);
+    updateLegs();
+    renderStats(1); renderStats(2);
+    renderHistory(); renderAverages();
+    updateCurrentPlayerDisplay();
+    enableInput();
+  }
 
-      try {
-        const state = JSON.parse(raw);
-        scores = state.scores || scores;
-        history = state.history || { 1: [], 2: [] }; 
-        stats = state.stats || stats;
-        currentPlayer = state.currentPlayer || 1;
-        legs = state.legs || legs;
-      } catch (e) {
-        console.warn("Failed to restore state", e);
-      }
-    }
-    
-    function syncUI() {
-      updateScore(1, scores[1]);
-      updateScore(2, scores[2]);
-      updateLegs();
-      renderStats(1);
-      renderStats(2);
-      renderHistory();
-      updateCurrentPlayerDisplay();
-      if (scores[1] === 0 || scores[2] === 0) disableInput();
-      else enableInput();
-    }
-    // =======================================================
-    
-    
-    // --- ALWAYS KEEP INPUT FOCUSED ---
-    setInterval(() => {
-      if (!inputEl.disabled) inputEl.focus();
-    }, 300);
+  // ===== INPUT HANDLING =====
+  setInterval(() => { if (!inputEl.disabled) inputEl.focus(); }, 300);
 
-    // --- ENTER KEY SUBMISSION ---
-    inputEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") submitScore();
-    });
+  inputEl.addEventListener("keydown", e => { if (e.key === "Enter") submitScore(); });
 
-    function submitScore() {
-      const value = parseInt(inputEl.value);
-
-      if (isNaN(value) || value < 0 || value > 240) {
-        alert("Invalid score. Must be between 0 and 240.");
-        inputEl.value = "";
-        return;
-      }
-
-      const newScore = scores[currentPlayer] - value;
-
-      // FIX: Added newScore === 1 check for bust rule
-      if (newScore < 0 || newScore === 1) { 
-        history[currentPlayer].push({ value, bust: true });
-        setStatus(`Bust! P${currentPlayer} remains at ${scores[currentPlayer]}.`);
-      } 
-      else if (newScore === 0) {
-        history[currentPlayer].push({ value, bust: false });
-        applyStats(currentPlayer, value);
-        updateScore(currentPlayer, 0);
-        renderHistory();
-
-        legs[currentPlayer]++;
-        updateLegs();
-
-        setStatus(`🎯 P${currentPlayer} wins the leg`);
-        disableInput();
-        saveState(); // Save state on win
-        return;
-      } 
-      else {
-        history[currentPlayer].push({ value, bust: false });
-        applyStats(currentPlayer, value);
-        updateScore(currentPlayer, newScore);
-        setStatus(`P${currentPlayer} scored ${value}`);
-      }
-
-      renderHistory();
-      inputEl.value = "";
-      currentPlayer = currentPlayer === 1 ? 2 : 1;
-      updateCurrentPlayerDisplay();
-      saveState(); // Save state after every submission
-    }
-
-    // ✅ EXCLUSIVE STAT BUCKETS (MATCH-LONG)
-    function applyStats(player, value) {
-      if (value >= 240) stats[player].s240++;
-      else if (value >= 200) stats[player].s200++;
-      else if (value >= 180) stats[player].s180++;
-      else if (value >= 140) stats[player].s140++;
-      else if (value >= 100) stats[player].s100++;
-
-      renderStats(player);
-    }
-    
-    // Added helper function to reset player's match stats
-    function resetPlayerStats(player) {
-      stats[player] = { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 };
-    }
-
-
-    function renderStats(player) {
-      document.getElementById(`p${player}_100`).textContent = stats[player].s100;
-      document.getElementById(`p${player}_140`).textContent = stats[player].s140;
-      document.getElementById(`p${player}_180`).textContent = stats[player].s180;
-      document.getElementById(`p${player}_200`).textContent = stats[player].s200;
-      document.getElementById(`p${player}_240`).textContent = stats[player].s240;
-    }
-
-    function updateScore(player, score) {
-      scores[player] = score;
-      document.getElementById(`score${player}`).textContent = score;
-    }
-
-    function updateLegs() {
-      document.getElementById("legs1").textContent = legs[1];
-      document.getElementById("legs2").textContent = legs[2];
-    }
-
-    // ✅ FINAL COSMETIC FIX: Ensured list item content is rendered on one compact line
-    function renderHistory() {
-      const list1 = document.getElementById("list1");
-      const list2 = document.getElementById("list2");
-
-      list1.innerHTML = history[1].map((turn, i) => `<li onclick="editScore(1, ${i})" class="cursor-pointer hover:underline text-3xl">${turn.bust ? `BUST (${turn.value})` : turn.value}</li>`).join("");
-
-      list2.innerHTML = history[2].map((turn, i) => `<li onclick="editScore(2, ${i})" class="cursor-pointer hover:underline text-3xl">${turn.bust ? `BUST (${turn.value})` : turn.value}</li>`).join("");
-      
-      // Scroll to bottom on history updates
-      list1.scrollTop = list1.scrollHeight;
-      list2.scrollTop = list2.scrollHeight;
+  function submitScore() {
+    const value = parseInt(inputEl.value);
+    if (isNaN(value) || value < 0 || value > 240) {
+      alert("Invalid score 0–240"); inputEl.value = ""; return;
     }
 
-    // ✅ ROBUST EDIT SCORE
-    function editScore(player, index) {
-      const oldTurn = history[player][index];
-      const input = prompt(`Edit P${player} Turn ${index + 1} score (0–240):`, oldTurn.value);
-      if (input === null) return;
+    const newScore = scores[currentPlayer] - value;
 
-      const newValue = parseInt(input);
-      if (isNaN(newValue) || newValue < 0 || newValue > 240) return;
-      
-      // 1. Determine the score adjustment
-      let scoreAdjustment = 0;
-      
-      if (oldTurn.bust) {
-        // If it was a bust, the score didn't change, so we subtract the new value from current score
-        scoreAdjustment = -newValue; 
-      } else {
-        // If it was a score, we restore the old value and subtract the new one
-        scoreAdjustment = oldTurn.value - newValue;
-      }
-      
-      const potentialNewScore = scores[player] + scoreAdjustment;
+    // ===== AVERAGE TRACKING (MATCH-LONG) =====
+    avgTotals[currentPlayer].points += value;
+    avgTotals[currentPlayer].visits += 1;
 
-      // 2. Check for bust/win condition
-      if (potentialNewScore < 0 || potentialNewScore === 1) {
-        alert("Error: That change results in a score less than 0 or exactly 1. Edit aborted.");
-        return;
-      }
-      
-      // 3. Apply changes to history and score
-      history[player][index].value = newValue;
-      history[player][index].bust = false; // Assume corrected score is not a bust (if bust, alert above prevents)
-      
-      updateScore(player, potentialNewScore);
-      
-      // 4. Recalculate stats for the player after a score edit (reset and re-apply all turns)
-      resetPlayerStats(player);
-      history[player].forEach(turn => {
-        if (!turn.bust) applyStats(player, turn.value);
-      });
+    if (newScore < 0 || newScore === 1) {
+      history[currentPlayer].push({ value, bust: true });
+      setStatus(`Bust! P${currentPlayer} remains at ${scores[currentPlayer]}`);
+    }
+    else if (newScore === 0) {
+      history[currentPlayer].push({ value, bust: false });
+      applyStats(currentPlayer, value);
+      updateScore(currentPlayer, 0);
+      legs[currentPlayer]++;
+      updateLegs();
+      setStatus(`🎯 P${currentPlayer} wins the leg`);
+      disableInput();
+      saveState(); inputEl.value = ""; return;
+    }
+    else {
+      history[currentPlayer].push({ value, bust: false });
+      applyStats(currentPlayer, value);
+      updateScore(currentPlayer, newScore);
+      setStatus(`P${currentPlayer} scored ${value}`);
+    }
 
-      renderHistory();
-      renderStats(player);
-      saveState();
-      
-      setStatus(`✅ P${player} Turn ${index + 1} score corrected to ${newValue}.`);
-      enableInput();
-    }
+    renderHistory(); renderAverages();
+    inputEl.value = "";
+    currentPlayer = currentPlayer === 1 ? 2 : 1;
+    updateCurrentPlayerDisplay();
+    updatePlayerHighlight();
+    saveState();
+  }
 
-    // ✅ NEW LEG → SCORES + HISTORY RESET, STATS + LEGS PERSIST
-    function newLeg() {
-      scores = { 1: 501, 2: 501 };
-      history = { 1: [], 2: [] };
+  // ===== STATS =====
+  function applyStats(player, value) {
+    if (value >= 240) stats[player].s240++;
+    else if (value >= 200) stats[player].s200++;
+    else if (value >= 180) stats[player].s180++;
+    else if (value >= 140) stats[player].s140++;
+    else if (value >= 100) stats[player].s100++;
+    renderStats(player);
+  }
 
-      updateScore(1, 501);
-      updateScore(2, 501);
-      renderHistory();
+  function renderStats(player) {
+    document.getElementById(`p${player}_100`).textContent = stats[player].s100;
+    document.getElementById(`p${player}_140`).textContent = stats[player].s140;
+    document.getElementById(`p${player}_180`).textContent = stats[player].s180;
+    document.getElementById(`p${player}_200`).textContent = stats[player].s200;
+    document.getElementById(`p${player}_240`).textContent = stats[player].s240;
+  }
 
-      currentPlayer = 1;
-      updateCurrentPlayerDisplay();
-      enableInput();
-      inputEl.value = "";
-      setStatus("New leg started – stats preserved");
-      saveState();
-    }
+  // ===== AVERAGES (MATCH TOTAL) =====
+  function calculateAverage(player) {
+    const t = avgTotals[player];
+    if (!t.visits) return "0.00";
+    return (t.points / t.visits).toFixed(2);
+  }
 
-    function resetGame() {
-      // Added confirmation for hard reset
-      if (!confirm("Are you sure you want to reset the entire match history and stats?")) return;
+  function renderAverages() {
+    document.getElementById("avg1").textContent = calculateAverage(1);
+    document.getElementById("avg2").textContent = calculateAverage(2);
+  }
 
-      scores = { 1: 501, 2: 501 };
-      history = { 1: [], 2: [] };
-      legs = { 1: 0, 2: 0 };
+  // ===== UI HELPERS =====
+  function updateScore(player, score) {
+    scores[player] = score;
+    document.getElementById(`score${player}`).textContent = score;
+  }
+  
+  function updatePlayerHighlight() {
+    document.getElementById("h2p1").classList.toggle("bg-red-200", currentPlayer === 1);
+    document.getElementById("h2p1").classList.toggle("bg-green-200", currentPlayer !== 1);
 
-      stats = {
-        1: { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 },
-        2: { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 }
-      };
-      
-      localStorage.removeItem("quadro501_state"); // Clear saved data
+    document.getElementById("h2p2").classList.toggle("bg-red-200", currentPlayer === 2);
+    document.getElementById("h2p2").classList.toggle("bg-green-200", currentPlayer !== 2);
+  }
 
-      renderStats(1);
-      renderStats(2);
-      updateLegs();
-      updateScore(1, 501);
-      updateScore(2, 501);
-      renderHistory();
+  function updateLegs() {
+    document.getElementById("legs1").textContent = legs[1];
+    document.getElementById("legs2").textContent = legs[2];
+  }
 
-      currentPlayer = 1;
-      updateCurrentPlayerDisplay();
-      enableInput();
-      inputEl.value = "";
-      setStatus("Game fully reset.");
-    }
+  function renderHistory() {
+    const list1 = document.getElementById("list1");
+    const list2 = document.getElementById("list2");
 
-    function setStatus(msg) {
-      document.getElementById("status").textContent = msg;
-    }
+    list1.innerHTML = history[1].map((t,i)=>`<li onclick="editScore(1,${i})" class="cursor-pointer text-3xl">${t.bust?`BUST (${t.value})`:t.value}</li>`).join("");
+    list2.innerHTML = history[2].map((t,i)=>`<li onclick="editScore(2,${i})" class="cursor-pointer text-3xl">${t.bust?`BUST (${t.value})`:t.value}</li>`).join("");
+  }
 
-    function updateCurrentPlayerDisplay() {
-      document.getElementById("currentPlayerDisplay").textContent = `P${currentPlayer}`;
-    }
+  // ===== UNDO =====
+  function undoLastThrow() {
+    const other = currentPlayer === 1 ? 2 : 1;
+    // remember if that player had just won the leg (score 0) before undo
+    const hadWon = (scores[other] === 0);
 
-    function disableInput() { inputEl.disabled = true; }
-    function enableInput() { inputEl.disabled = false; inputEl.focus(); }
-    
-    // ====== INITIALIZATION (Added for persistence) ======
-    loadState();
-    syncUI();
-  </script>
+    const last = history[other].pop();
+    if (!last) return setStatus("Nothing to undo");
+
+    // Roll back AVG safely
+    if (avgTotals[other].visits > 0) {
+      avgTotals[other].visits--;
+      if (!last.bust) avgTotals[other].points -= last.value;
+    }
+
+    // Recompute the player's stats and score from history (correct way)
+    // Reset stats
+    stats[other] = { s100: 0, s140: 0, s180: 0, s200: 0, s240: 0 };
+    // Rebuild score
+    let total = 501;
+    for (const turn of history[other]) {
+      if (!turn.bust) {
+        const v = turn.value;
+        // exclusive buckets
+        if (v >= 240) stats[other].s240++;
+        else if (v >= 200) stats[other].s200++;
+        else if (v >= 180) stats[other].s180++;
+        else if (v >= 140) stats[other].s140++;
+        else if (v >= 100) stats[other].s100++;
+
+        total -= v;
+      }
+    }
+    scores[other] = Math.max(total, 0);
+
+    // If the undone throw had been the winning throw, remove the leg
+    if (hadWon && legs[other] > 0 && scores[other] > 0) {
+      legs[other]--;
+    }
+
+    updateScore(other, scores[other]);
+    renderHistory();
+    renderStats(other);
+    renderAverages();
+
+    currentPlayer = other;
+    updateCurrentPlayerDisplay();
+    enableInput();
+    updatePlayerHighlight();
+    saveState();
+
+    setStatus(`↩️ Undo P${other}`);
+  }
+
+  // ===== EDIT =====
+  function editScore(player, index) {
+    const old = history[player][index];
+    const input = prompt(`Edit P${player} Turn ${index+1}`, old.value);
+    if (input === null) return;
+    const val = parseInt(input);
+    if (isNaN(val) || val < 0 || val > 240) return;
+
+    avgTotals[player].points -= old.value;
+    avgTotals[player].points += val;
+
+    history[player][index].value = val;
+    history[player][index].bust = false;
+
+    scores[player] = 501 - history[player].filter(t=>!t.bust).reduce((s,t)=>s+t.value,0);
+
+    updateScore(player, scores[player]);
+    renderHistory(); renderAverages(); saveState();
+  }
+
+  // ===== NEW LEG =====
+  function newLeg() {
+    scores = { 1: 501, 2: 501 };
+    history = { 1: [], 2: [] };
+    updateScore(1,501); updateScore(2,501);
+    renderHistory(); enableInput(); inputEl.value="";
+    currentPlayer = 1; updateCurrentPlayerDisplay(); updatePlayerHighlight();
+    setStatus("New leg – AVG preserved"); saveState();
+  }
+
+  // ===== RESET GAME =====
+  function resetGame() {
+    if (!confirm("Reset everything?")) return;
+    localStorage.removeItem("quadro501_state");
+    scores = clone(defaultState.scores);
+    history = clone(defaultState.history);
+    stats = clone(defaultState.stats);
+    avgTotals = clone(defaultState.avgTotals);
+    legs = clone(defaultState.legs);
+    currentPlayer = 1;
+    syncUI(); setStatus("Game reset");
+  }
+
+  function setStatus(msg){ document.getElementById("status").textContent = msg; }
+  function updateCurrentPlayerDisplay(){ 
+    updatePlayerHighlight();
+    document.getElementById("currentPlayerDisplay").textContent = `P${currentPlayer}`; 
+  }
+  function disableInput(){ inputEl.disabled = true; }
+  function enableInput(){ inputEl.disabled = false; inputEl.focus(); }
+
+  loadState(); syncUI();
+</script>
 </body>
 </html>
