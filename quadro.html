@@ -12,7 +12,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
       <!-- P 1 PANEL -->
       <div class="text-center space-y-2">
-        <h2 id="h2p1" class="font-semibold bg-green-200 rounded-full px-4 py-1">P1</h2>
+        <h2 id="h2p1" class="font-semibold bg-red-200 rounded-full px-4 py-1">P1</h2>
         <div class="text-5xl font-extrabold" id="legs1">0</div>
         <div class="text-xs">LEGS</div>
         <div id="score1" class="text-5xl text-red-500 font-bold">501</div>
@@ -31,7 +31,7 @@
 
       <!-- PLAYER 2 PANEL -->
       <div class="text-center space-y-2">
-        <h2 id="h2p2" class="font-semibold bg-green-200 rounded-full px-4 py-1">P2</h2>
+        <h2 id="h2p2" class="font-semibold bg-red-200 rounded-full px-4 py-1">P2</h2>
         <div class="text-5xl font-extrabold" id="legs2">0</div>
         <div class="text-xs">LEGS</div>
         <div id="score2" class="text-5xl text-red-500 font-bold">501</div>
@@ -236,11 +236,11 @@
   }
   
   function updatePlayerHighlight() {
-    document.getElementById("h2p1").classList.toggle("bg-red-200", currentPlayer === 1);
-    document.getElementById("h2p1").classList.toggle("bg-green-200", currentPlayer !== 1);
+    document.getElementById("h2p1").classList.toggle("bg-green-200", currentPlayer === 1);
+    document.getElementById("h2p1").classList.toggle("bg-red-200", currentPlayer !== 1);
 
-    document.getElementById("h2p2").classList.toggle("bg-red-200", currentPlayer === 2);
-    document.getElementById("h2p2").classList.toggle("bg-green-200", currentPlayer !== 2);
+    document.getElementById("h2p2").classList.toggle("bg-green-200", currentPlayer === 2);
+    document.getElementById("h2p2").classList.toggle("bg-red-200", currentPlayer !== 2);
   }
 
   function updateLegs() {
