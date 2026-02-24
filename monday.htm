@@ -503,6 +503,9 @@
 
         <button id="startTournament" disabled>Start Tournament</button>
         <button id="resetTournament" class="reset-btn">Reset Tournament</button>
+        <!-- NEW HTML BUTTON for Export -->
+        <button id="exportSchedule" style="margin-top:10px;">Export Players Schedule</button>
+
         <button id="saveHistory" class="save-history-btn">Save Tournament to History</button>
         <div id="historyStatus" class="history-status"></div>
       </div>
@@ -1185,6 +1188,61 @@
     historyStatus.textContent = 'Tournament deleted from history.';
     historyStatus.className = 'status info';
   }
+  
+  // --- Export Players Schedule ---
+function exportPlayersSchedule() {
+  if (players.length === 0) {
+    alert('No players to export.');
+    return;
+  }
+
+  let scheduleText = '';
+
+  players.forEach(player => {
+    scheduleText += `Player: ${player.name}\n`;
+
+    // Completed matches
+    const completedGames = matches
+      .filter(m => m.completed && (m.player1Id === player.id || m.player2Id === player.id))
+      .sort((a, b) => a.id - b.id)
+      .map(m => {
+        const p1 = players.find(p => p.id === m.player1Id).name;
+        const p2 = players.find(p => p.id === m.player2Id).name;
+        const g1 = m.player1Games ?? 0;
+        const g2 = m.player2Games ?? 0;
+        return `${p1} ${g1} v ${p2} ${g2}`;
+      });
+
+    scheduleText += completedGames.length > 0 
+      ? '  Played Games:\n' + completedGames.map(g => `    ${g}`).join('\n') + '\n'
+      : '  Played Games: None\n';
+
+    // Pending matches
+    const pendingGames = matches
+      .filter(m => !m.completed && (m.player1Id === player.id || m.player2Id === player.id))
+      .sort((a, b) => a.id - b.id)
+      .map(m => {
+        const p1 = players.find(p => p.id === m.player1Id).name;
+        const p2 = players.find(p => p.id === m.player2Id).name;
+        return `${p1} v ${p2}`;
+      });
+
+    scheduleText += pendingGames.length > 0
+      ? '  Games To Play:\n' + pendingGames.map(g => `    ${g}`).join('\n') + '\n'
+      : '  Games To Play: None\n';
+
+    scheduleText += '\n';
+  });
+
+  navigator.clipboard.writeText(scheduleText)
+    .then(() => alert('Players schedule copied to clipboard!'))
+    .catch(err => {
+      console.error('Failed to copy schedule:', err);
+      alert('Failed to copy schedule to clipboard.');
+    });
+}
+
+document.getElementById('exportSchedule').addEventListener('click', exportPlayersSchedule);
   </script>
 </body>
 </html>
