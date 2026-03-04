@@ -698,11 +698,15 @@ if (allAverages.length > 0) {
       },
       plugins: {
         legend: {
-          position: 'bottom'
-        },
-        title: {
-          display: true,
-          text: 'AVG Progression'
+          onClick: function(e, legendItem, legend) {
+            const index = legendItem.datasetIndex;
+            const ci = legend.chart;
+            const meta = ci.getDatasetMeta(index);
+            
+            // Instead of hiding, toggle alpha
+            meta.hidden = meta.hidden === null ? !meta.hidden : null; 
+            ci.update();
+          }
         }
       },
       scales: {
