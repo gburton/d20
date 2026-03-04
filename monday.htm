@@ -658,10 +658,31 @@
       data: padded,
       borderColor: colors[index % colors.length],
       backgroundColor: colors[index % colors.length],
+      borderWidth: 1,
       tension: 0.3,
-      spanGaps: false
+      spanGaps: false,
+      pointRadius: 3,
+      pointHoverRadius: 5 
     };
   });
+// Collect all average values
+const allAverages = [];
+
+playerData.forEach(p => {
+  p.averages.forEach(val => {
+    if (val !== null && !isNaN(val)) {
+      allAverages.push(val);
+    }
+  });
+});
+
+let minAvg = 0;
+let maxAvg = 0;
+
+if (allAverages.length > 0) {
+  minAvg = Math.min(...allAverages) - 3;
+  maxAvg = Math.max(...allAverages) + 3;
+}
 
   performanceChart = new Chart(ctx, {
     type: 'line',
@@ -686,7 +707,8 @@
       },
       scales: {
         y: {
-          beginAtZero: true,
+          min: minAvg,
+          max: maxAvg,
           title: {
             display: true,
             text: 'Average'
