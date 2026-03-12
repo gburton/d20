@@ -20,7 +20,7 @@
     <div id="statsOverview" class="stats-overview"></div>
     <div class="charts-grid" id="chartsGrid">
       <div class="chart-container">
-        <h3 class="chart-title">🎯 Performance by Double</h3>
+        <h3 class="chart-title">🎯 Total Hits by Double</h3>
         <div class="chart-wrapper"><canvas id="doublesChart"></canvas></div>
       </div>
 
@@ -133,7 +133,7 @@ class ProgressReport {
   renderDoublesChart() {
     const ctx = document.getElementById('doublesChart').getContext('2d');
     const doubles = Object.keys(this.stats).sort((a,b)=>a-b);
-    const averages = doubles.map(d => this.stats[d].average);
+    const hits = doubles.map(d => this.stats[d].totalHits);
 
     const backgroundColors = doubles.map(d => {
       if(d==25) return '#dc3545';
@@ -143,8 +143,8 @@ class ProgressReport {
 
     new Chart(ctx, {
       type: 'bar',
-      data: { labels: doubles.map(d=>`D${d}`), datasets:[{ data: averages, backgroundColor: backgroundColors, borderColor: backgroundColors, borderWidth:1, borderRadius:8, borderSkipped:false }] },
-      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, max: Math.ceil(Math.max(...averages)), ticks: { precision: 0 }}, x:{grid:{display:false}}} }
+      data: { labels: doubles.map(d=>`D${d}`), datasets:[{ data: hits, backgroundColor: backgroundColors, borderColor: backgroundColors, borderWidth:1, borderRadius:8,borderSkipped:false }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{ beginAtZero:true, max: Math.ceil(Math.max(...hits)), ticks:{precision:0} }, x:{grid:{display:false}} } }
     });
   }
 
